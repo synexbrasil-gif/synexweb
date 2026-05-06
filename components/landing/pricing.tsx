@@ -16,7 +16,7 @@ const plans = [
       "1 dispositivo simultâneo",
       "Suporte via WhatsApp"
     ],
-    href: "https://wa.me/212693974294?text=Ol%C3%A1%2C%20quero%20contratar%20o%20Plano%20Mensal."
+    href: "/checkout?plano=mensal"
   },
   {
     name: "Trimestral",
@@ -29,7 +29,7 @@ const plans = [
       "1 dispositivo simultâneo",
       "Suporte via WhatsApp"
     ],
-    href: "https://wa.me/212693974294?text=Ol%C3%A1%2C%20quero%20contratar%20o%20Plano%20Trimestral."
+    href: "/checkout?plano=trimestral"
   },
   {
     name: "Anual",
@@ -42,7 +42,7 @@ const plans = [
       "1 dispositivo simultâneo",
       "Suporte via WhatsApp"
     ],
-    href: "https://wa.me/212693974294?text=Ol%C3%A1%2C%20quero%20contratar%20o%20Plano%20Anual."
+    href: "/checkout?plano=anual"
   }
 ]
 
@@ -106,7 +106,7 @@ export function Pricing() {
                 className="w-full h-12 px-8 text-base shadow-lg hover:shadow-xl transition-all hover:scale-[1.02]"
                 variant="outline"
               >
-                <a href={plan.href} target="_blank" rel="noopener noreferrer">
+                <a href={plan.href}>
                   Contratar agora
                 </a>
               </Button>
