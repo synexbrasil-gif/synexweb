@@ -6,6 +6,7 @@ import {
   Eye,
   EyeOff,
   FileText,
+  Plug,
   Search,
   Trash2,
   UserRound,
@@ -25,8 +26,17 @@ type Contract = {
   createdAt: string
 }
 
+type MercadoPagoIntegration = {
+  publicKey: string
+  accessToken: string
+  clientId: string
+  clientSecret: string
+  updatedAt: string | null
+}
+
 export default function AdminPage() {
   const router = useRouter()
+  const [activeSection, setActiveSection] = useState<"contracts" | "integrations">("contracts")
   const [contracts, setContracts] = useState<Contract[]>([])
   const [fullName, setFullName] = useState("")
   const [username, setUsername] = useState("")
@@ -38,6 +48,14 @@ export default function AdminPage() {
   const [isSaving, setIsSaving] = useState(false)
   const [isLoadingContracts, setIsLoadingContracts] = useState(true)
   const [error, setError] = useState("")
+  const [mercadoPagoPublicKey, setMercadoPagoPublicKey] = useState("")
+  const [mercadoPagoAccessToken, setMercadoPagoAccessToken] = useState("")
+  const [mercadoPagoClientId, setMercadoPagoClientId] = useState("")
+  const [mercadoPagoClientSecret, setMercadoPagoClientSecret] = useState("")
+  const [mercadoPagoUpdatedAt, setMercadoPagoUpdatedAt] = useState<string | null>(null)
+  const [isLoadingIntegration, setIsLoadingIntegration] = useState(true)
+  const [isSavingIntegration, setIsSavingIntegration] = useState(false)
+  const [integrationMessage, setIntegrationMessage] = useState("")
 
   useEffect(() => {
     const loadContracts = async () => {
@@ -70,6 +88,37 @@ export default function AdminPage() {
     loadContracts()
   }, [router])
 
+  useEffect(() => {
+    const loadIntegration = async () => {
+      setIsLoadingIntegration(true)
+
+      try {
+        const response = await fetch("/api/integracoes/mercado-pago", { cache: "no-store" })
+        if (response.status === 401) {
+          router.replace("/contrato/login?next=/admin")
+          return
+        }
+
+        if (!response.ok) return
+
+        const data = await response.json()
+        const integration = data.integration as MercadoPagoIntegration | null
+
+        if (integration) {
+          setMercadoPagoPublicKey(integration.publicKey)
+          setMercadoPagoAccessToken(integration.accessToken)
+          setMercadoPagoClientId(integration.clientId)
+          setMercadoPagoClientSecret(integration.clientSecret)
+          setMercadoPagoUpdatedAt(integration.updatedAt)
+        }
+      } finally {
+        setIsLoadingIntegration(false)
+      }
+    }
+
+    loadIntegration()
+  }, [router])
+
   const filteredContracts = useMemo(() => {
     const query = searchQuery.trim().toLowerCase()
     if (!query) return contracts
@@ -84,6 +133,7 @@ export default function AdminPage() {
   }, [contracts])
 
   const latestContract = contracts[0]
+  const hasMercadoPagoIntegration = Boolean(mercadoPagoAccessToken.trim())
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -165,6 +215,58 @@ export default function AdminPage() {
     }
   }
 
+  const saveMercadoPago = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    setIntegrationMessage("")
+
+    const publicKey = mercadoPagoPublicKey.trim()
+    const accessToken = mercadoPagoAccessToken.trim()
+    const clientId = mercadoPagoClientId.trim()
+    const clientSecret = mercadoPagoClientSecret.trim()
+
+    if (!publicKey || !accessToken || !clientId || !clientSecret) {
+      setIntegrationMessage("Preencha todos os dados do Mercado Pago.")
+      return
+    }
+
+    setIsSavingIntegration(true)
+
+    try {
+      const response = await fetch("/api/integracoes/mercado-pago", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          publicKey,
+          accessToken,
+          clientId,
+          clientSecret,
+        }),
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        if (response.status === 401) {
+          router.replace("/contrato/login?next=/admin")
+          return
+        }
+
+        setIntegrationMessage(data?.error ?? "Nao foi possivel salvar a integracao.")
+        return
+      }
+
+      const integration = data.integration as MercadoPagoIntegration
+      setMercadoPagoUpdatedAt(integration.updatedAt)
+      setIntegrationMessage("Integração salva com sucesso.")
+    } catch {
+      setIntegrationMessage("Nao foi possivel salvar a integracao.")
+    } finally {
+      setIsSavingIntegration(false)
+    }
+  }
+
   return (
     <main className="relative min-h-screen overflow-hidden bg-[linear-gradient(115deg,oklch(0.93_0_0)_0%,oklch(0.98_0_0)_42%,oklch(0.92_0_0)_100%)] text-foreground">
       <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(115deg,oklch(0.93_0_0)_0%,oklch(0.98_0_0)_42%,oklch(0.92_0_0)_100%)]" />
@@ -180,13 +282,46 @@ export default function AdminPage() {
           </div>
 
           <nav className="flex-1 space-y-1 p-4">
-            <button className="group flex w-full items-center justify-between gap-3 rounded-xl bg-[linear-gradient(135deg,oklch(0.99_0_0)_0%,oklch(0.94_0_0)_58%,oklch(0.90_0_0)_100%)] px-3 py-3 text-sm font-medium text-sidebar-accent-foreground shadow-md shadow-foreground/5 transition-all duration-200">
+            <button
+              type="button"
+              onClick={() => setActiveSection("contracts")}
+              className={cn(
+                "group flex w-full items-center justify-between gap-3 rounded-xl px-3 py-3 text-sm font-medium transition-all duration-200",
+                activeSection === "contracts"
+                  ? "bg-[linear-gradient(135deg,oklch(0.99_0_0)_0%,oklch(0.94_0_0)_58%,oklch(0.90_0_0)_100%)] text-sidebar-accent-foreground shadow-md shadow-foreground/5"
+                  : "text-sidebar-foreground/70 hover:bg-white/35 hover:text-sidebar-foreground hover:shadow-sm",
+              )}
+            >
               <span className="flex min-w-0 items-center gap-3">
                 <FileText className="h-4 w-4 shrink-0" />
                 <span className="truncate">Contratos</span>
               </span>
-              <span className="rounded-full bg-foreground/10 px-2 py-0.5 text-[10px] font-semibold text-foreground">
+              <span className={cn(
+                "rounded-full px-2 py-0.5 text-[10px] font-semibold",
+                activeSection === "contracts" ? "bg-foreground/10 text-foreground" : "bg-foreground/5 text-muted-foreground",
+              )}>
                 {contracts.length}
+              </span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveSection("integrations")}
+              className={cn(
+                "group flex w-full items-center justify-between gap-3 rounded-xl px-3 py-3 text-sm font-medium transition-all duration-200",
+                activeSection === "integrations"
+                  ? "bg-[linear-gradient(135deg,oklch(0.99_0_0)_0%,oklch(0.94_0_0)_58%,oklch(0.90_0_0)_100%)] text-sidebar-accent-foreground shadow-md shadow-foreground/5"
+                  : "text-sidebar-foreground/70 hover:bg-white/35 hover:text-sidebar-foreground hover:shadow-sm",
+              )}
+            >
+              <span className="flex min-w-0 items-center gap-3">
+                <Plug className="h-4 w-4 shrink-0" />
+                <span className="truncate">Integrações</span>
+              </span>
+              <span className={cn(
+                "rounded-full px-2 py-0.5 text-[10px] font-semibold",
+                activeSection === "integrations" ? "bg-foreground/10 text-foreground" : "bg-foreground/5 text-muted-foreground",
+              )}>
+                {hasMercadoPagoIntegration ? "1" : "0"}
               </span>
             </button>
           </nav>
@@ -199,6 +334,8 @@ export default function AdminPage() {
           </header>
 
           <div className="space-y-6 p-4 lg:p-8" style={{ animation: "synex-fade-in-up 420ms ease-out both" }}>
+            {activeSection === "contracts" ? (
+            <>
             <section className="grid gap-3 md:grid-cols-3">
               <div className="rounded-lg border border-border/70 bg-[linear-gradient(135deg,oklch(0.99_0_0)_0%,oklch(0.96_0_0)_58%,oklch(0.93_0_0)_100%)] p-4 shadow-sm">
                 <p className="text-xs font-medium text-muted-foreground">Contratos</p>
@@ -344,6 +481,51 @@ export default function AdminPage() {
                 </div>
               </section>
             </section>
+            </>
+            ) : (
+            <section className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_22rem]">
+              <form onSubmit={saveMercadoPago} className="rounded-lg border border-border/70 bg-[linear-gradient(135deg,oklch(0.99_0_0)_0%,oklch(0.97_0_0)_50%,oklch(0.94_0_0)_100%)] p-5 shadow-sm">
+                <div className="flex items-center gap-2">
+                  <Plug className="h-4 w-4 text-muted-foreground" />
+                  <h2 className="text-base font-semibold text-foreground">Mercado Pago</h2>
+                </div>
+                <p className="mt-2 text-sm text-muted-foreground">
+                  Cadastre as credenciais usadas para gerar Pix no checkout.
+                </p>
+
+                <div className={cn("mt-5 grid gap-4 md:grid-cols-2", isLoadingIntegration && "animate-pulse")}>
+                  <AdminField label="Public Key" value={mercadoPagoPublicKey} onChange={setMercadoPagoPublicKey} placeholder="APP_USR..." />
+                  <AdminField label="Access Token" value={mercadoPagoAccessToken} onChange={setMercadoPagoAccessToken} placeholder="APP_USR..." type="password" />
+                  <AdminField label="Client ID" value={mercadoPagoClientId} onChange={setMercadoPagoClientId} placeholder="Client ID" />
+                  <AdminField label="Client Secret" value={mercadoPagoClientSecret} onChange={setMercadoPagoClientSecret} placeholder="Client Secret" type="password" />
+                </div>
+
+                {integrationMessage && (
+                  <p className={cn("mt-4 text-sm font-medium", integrationMessage.includes("sucesso") ? "text-foreground" : "text-destructive")}>
+                    {integrationMessage}
+                  </p>
+                )}
+
+                <Button type="submit" className="mt-5 h-11 w-full rounded-lg bg-foreground text-background hover:bg-foreground/90" disabled={isSavingIntegration || isLoadingIntegration}>
+                  {isSavingIntegration ? "Salvando..." : "Salvar integração"}
+                </Button>
+              </form>
+
+              <aside className="rounded-lg border border-border/70 bg-[linear-gradient(135deg,oklch(0.99_0_0)_0%,oklch(0.96_0_0)_58%,oklch(0.93_0_0)_100%)] p-5 shadow-sm">
+                <p className="text-xs font-medium text-muted-foreground">Status</p>
+                <p className="mt-2 text-2xl font-semibold text-foreground">
+                  {hasMercadoPagoIntegration ? "Conectado" : "Pendente"}
+                </p>
+                <div className="mt-5 space-y-3 text-sm text-muted-foreground">
+                  <div className="rounded-xl bg-background/55 p-3">Pix gerado no backend</div>
+                  <div className="rounded-xl bg-background/55 p-3">Access Token salvo no MySQL</div>
+                  <div className="rounded-xl bg-background/55 p-3">
+                    {mercadoPagoUpdatedAt ? `Atualizado em ${new Date(mercadoPagoUpdatedAt).toLocaleString("pt-BR")}` : "Nenhuma atualização registrada"}
+                  </div>
+                </div>
+              </aside>
+            </section>
+            )}
           </div>
         </section>
       </div>

@@ -7,7 +7,7 @@ export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl
   const isAuthenticated = request.cookies.get(CONTRACT_AUTH_COOKIE)?.value === CONTRACT_AUTH_VALUE
 
-  if (pathname.startsWith("/api/contratos")) {
+  if (pathname.startsWith("/api/contratos") || pathname.startsWith("/api/integracoes")) {
     if (isAuthenticated) return NextResponse.next()
 
     return NextResponse.json({ error: "Nao autorizado." }, { status: 401 })
@@ -24,5 +24,5 @@ export function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/admin/:path*", "/contrato/:path*", "/contratos/:path*", "/api/contratos/:path*"],
+  matcher: ["/admin/:path*", "/contrato/:path*", "/contratos/:path*", "/api/contratos/:path*", "/api/integracoes/:path*"],
 }

@@ -11,6 +11,14 @@ export type Contract = {
   createdAt: string
 }
 
+export type MercadoPagoIntegration = {
+  publicKey: string
+  accessToken: string
+  clientId: string
+  clientSecret: string
+  updatedAt: string | null
+}
+
 type ContractRow = RowDataPacket & {
   id: string
   full_name: string
@@ -21,7 +29,17 @@ type ContractRow = RowDataPacket & {
   created_at: Date | string
 }
 
+type IntegrationRow = RowDataPacket & {
+  provider: string
+  public_key: string
+  access_token: string
+  client_id: string
+  client_secret: string
+  updated_at: Date | string | null
+}
+
 type ContractInput = Omit<Contract, "id" | "createdAt">
+type MercadoPagoIntegrationInput = Omit<MercadoPagoIntegration, "updatedAt">
 
 let pool: mysql.Pool | null = null
 let schemaReady: Promise<void> | null = null
@@ -91,10 +109,38 @@ async function ensureSchema() {
           INDEX idx_contracts_username (username)
         )
       `)
+      .then(() =>
+        getPool().execute(`
+          CREATE TABLE IF NOT EXISTS payment_integrations (
+            provider VARCHAR(50) NOT NULL PRIMARY KEY,
+            public_key TEXT NOT NULL,
+            access_token TEXT NOT NULL,
+            client_id VARCHAR(255) NOT NULL,
+            client_secret TEXT NOT NULL,
+            updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+          )
+        `),
+      )
       .then(() => undefined)
   }
 
   return schemaReady
+}
+
+function mapMercadoPagoIntegration(row: IntegrationRow): MercadoPagoIntegration {
+  const updatedAt = row.updated_at
+    ? row.updated_at instanceof Date
+      ? row.updated_at.toISOString()
+      : new Date(row.updated_at).toISOString()
+    : null
+
+  return {
+    publicKey: row.public_key,
+    accessToken: row.access_token,
+    clientId: row.client_id,
+    clientSecret: row.client_secret,
+    updatedAt,
+  }
 }
 
 function mapContract(row: ContractRow): Contract {
@@ -188,4 +234,39 @@ export async function findSubscriberByCredentials(username: string, password: st
   )
 
   return rowsByUsername[0] ? mapContract(rowsByUsername[0]) : null
+}
+
+export async function getMercadoPagoIntegration() {
+  await ensureSchema()
+
+  const [rows] = await getPool().execute<IntegrationRow[]>(
+    `
+      SELECT provider, public_key, access_token, client_id, client_secret, updated_at
+      FROM payment_integrations
+      WHERE provider = 'mercado_pago'
+      LIMIT 1
+    `,
+  )
+
+  return rows[0] ? mapMercadoPagoIntegration(rows[0]) : null
+}
+
+export async function saveMercadoPagoIntegration(input: MercadoPagoIntegrationInput) {
+  await ensureSchema()
+
+  await getPool().execute(
+    `
+      INSERT INTO payment_integrations (provider, public_key, access_token, client_id, client_secret)
+      VALUES ('mercado_pago', ?, ?, ?, ?)
+      ON DUPLICATE KEY UPDATE
+        public_key = VALUES(public_key),
+        access_token = VALUES(access_token),
+        client_id = VALUES(client_id),
+        client_secret = VALUES(client_secret),
+        updated_at = CURRENT_TIMESTAMP
+    `,
+    [input.publicKey, input.accessToken, input.clientId, input.clientSecret],
+  )
+
+  return getMercadoPagoIntegration()
 }

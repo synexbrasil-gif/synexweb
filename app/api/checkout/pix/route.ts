@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server"
 
+import { getMercadoPagoIntegration } from "@/lib/contracts-db"
+
 const plans = {
   mensal: {
     name: "Mensal",
@@ -38,7 +40,8 @@ type MercadoPagoPixResponse = {
 }
 
 export async function POST(request: Request) {
-  const accessToken = process.env.MERCADO_PAGO_ACCESS_TOKEN
+  const integration = await getMercadoPagoIntegration().catch(() => null)
+  const accessToken = integration?.accessToken || process.env.MERCADO_PAGO_ACCESS_TOKEN
 
   if (!accessToken) {
     return NextResponse.json({ error: "Pagamento Pix indisponível no momento." }, { status: 500 })
