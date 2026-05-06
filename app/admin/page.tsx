@@ -172,9 +172,14 @@ export default function AdminPage() {
   }
 
   return (
-    <main className="min-h-screen bg-[oklch(0.96_0_0)] text-foreground">
-      <div className="flex min-h-screen">
-        <aside className="hidden w-72 shrink-0 border-r border-border/70 bg-background lg:flex lg:flex-col">
+    <main className="relative min-h-screen overflow-hidden bg-[linear-gradient(115deg,oklch(0.93_0_0)_0%,oklch(0.98_0_0)_42%,oklch(0.92_0_0)_100%)] text-foreground">
+      <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(115deg,oklch(0.93_0_0)_0%,oklch(0.98_0_0)_42%,oklch(0.92_0_0)_100%)]" />
+      <div className="gradient-glow gradient-glow-1" style={{ top: "-220px", left: "-180px" }} />
+      <div className="gradient-glow gradient-glow-2" style={{ top: "160px", right: "-220px" }} />
+      <div className="gradient-glow gradient-glow-3" style={{ bottom: "-260px", left: "25%" }} />
+
+      <div className="relative z-10 flex min-h-screen">
+        <aside className="hidden w-72 shrink-0 border-r border-border/70 bg-transparent lg:flex lg:flex-col">
           <div className="flex h-[73px] flex-col justify-center border-b border-border/70 px-6">
             <p className="text-sm font-semibold text-foreground">Synex Brasil</p>
             <p className="text-xs text-muted-foreground">Admin</p>
@@ -190,7 +195,7 @@ export default function AdminPage() {
         </aside>
 
         <section className="min-w-0 flex-1">
-          <header className="sticky top-0 z-20 border-b border-border/70 bg-background/90 px-4 backdrop-blur lg:px-8">
+          <header className="sticky top-0 z-20 border-b border-border/70 bg-transparent px-4 backdrop-blur lg:px-8">
             <div className="flex h-[73px] items-center justify-end">
               <div className="flex items-center gap-2">
                 <Button

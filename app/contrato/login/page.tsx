@@ -48,10 +48,11 @@ export default function ContratoLoginPage() {
   }
 
   return (
-    <main className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden px-4 py-8">
-      <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-muted/50 via-background to-muted/30" />
-      <div className="gradient-glow gradient-glow-1" style={{ top: "-200px", left: "-150px" }} />
-      <div className="gradient-glow gradient-glow-2" style={{ top: "300px", right: "-200px" }} />
+    <main className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-[linear-gradient(115deg,oklch(0.93_0_0)_0%,oklch(0.98_0_0)_42%,oklch(0.92_0_0)_100%)] px-4 py-8">
+      <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(115deg,oklch(0.93_0_0)_0%,oklch(0.98_0_0)_42%,oklch(0.92_0_0)_100%)]" />
+      <div className="gradient-glow gradient-glow-1" style={{ top: "-220px", left: "-180px" }} />
+      <div className="gradient-glow gradient-glow-2" style={{ top: "160px", right: "-220px" }} />
+      <div className="gradient-glow gradient-glow-3" style={{ bottom: "-260px", left: "25%" }} />
 
       <Card
         className="relative z-10 w-full max-w-md border-border/50 shadow-xl"
