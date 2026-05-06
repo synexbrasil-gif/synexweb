@@ -6,7 +6,6 @@ import {
   Eye,
   EyeOff,
   FileText,
-  LogOut,
   Search,
   Trash2,
   UserRound,
@@ -166,11 +165,6 @@ export default function AdminPage() {
     }
   }
 
-  const logout = async () => {
-    await fetch("/api/contrato-auth", { method: "DELETE" }).catch(() => null)
-    router.replace("/contrato/login?next=/admin")
-  }
-
   return (
     <main className="relative min-h-screen overflow-hidden bg-[linear-gradient(115deg,oklch(0.93_0_0)_0%,oklch(0.98_0_0)_42%,oklch(0.92_0_0)_100%)] text-foreground">
       <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(115deg,oklch(0.93_0_0)_0%,oklch(0.98_0_0)_42%,oklch(0.92_0_0)_100%)]" />
@@ -186,9 +180,14 @@ export default function AdminPage() {
           </div>
 
           <nav className="flex-1 space-y-1 p-4">
-            <button className="flex w-full items-center gap-3 rounded-lg bg-foreground px-3 py-2.5 text-sm font-medium text-background">
-              <FileText className="h-4 w-4" />
-              Contratos
+            <button className="group flex w-full items-center justify-between gap-3 rounded-xl bg-[linear-gradient(135deg,oklch(0.99_0_0)_0%,oklch(0.94_0_0)_58%,oklch(0.90_0_0)_100%)] px-3 py-3 text-sm font-medium text-sidebar-accent-foreground shadow-md shadow-foreground/5 transition-all duration-200">
+              <span className="flex min-w-0 items-center gap-3">
+                <FileText className="h-4 w-4 shrink-0" />
+                <span className="truncate">Contratos</span>
+              </span>
+              <span className="rounded-full bg-foreground/10 px-2 py-0.5 text-[10px] font-semibold text-foreground">
+                {contracts.length}
+              </span>
             </button>
           </nav>
 
@@ -196,38 +195,27 @@ export default function AdminPage() {
 
         <section className="min-w-0 flex-1">
           <header className="sticky top-0 z-20 border-b border-border/60 bg-transparent px-4 backdrop-blur lg:px-8">
-            <div className="flex h-[73px] items-center justify-end">
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  className="h-12 gap-2 rounded-lg px-8 text-base shadow-lg transition-all hover:scale-[1.02] hover:shadow-xl"
-                  onClick={logout}
-                >
-                  <LogOut className="h-4 w-4" />
-                  Sair
-                </Button>
-              </div>
-            </div>
+            <div className="h-[73px]" />
           </header>
 
           <div className="space-y-6 p-4 lg:p-8" style={{ animation: "synex-fade-in-up 420ms ease-out both" }}>
             <section className="grid gap-3 md:grid-cols-3">
-              <div className="rounded-lg border border-border/70 bg-background p-4 shadow-sm">
+              <div className="rounded-lg border border-border/70 bg-[linear-gradient(135deg,oklch(0.99_0_0)_0%,oklch(0.96_0_0)_58%,oklch(0.93_0_0)_100%)] p-4 shadow-sm">
                 <p className="text-xs font-medium text-muted-foreground">Contratos</p>
                 <p className="mt-2 text-2xl font-semibold text-foreground">{contracts.length}</p>
               </div>
-              <div className="rounded-lg border border-border/70 bg-background p-4 shadow-sm">
+              <div className="rounded-lg border border-border/70 bg-[linear-gradient(135deg,oklch(0.99_0_0)_0%,oklch(0.96_0_0)_58%,oklch(0.93_0_0)_100%)] p-4 shadow-sm">
                 <p className="text-xs font-medium text-muted-foreground">Planos cadastrados</p>
                 <p className="mt-2 text-2xl font-semibold text-foreground">{totalPlans}</p>
               </div>
-              <div className="rounded-lg border border-border/70 bg-background p-4 shadow-sm">
+              <div className="rounded-lg border border-border/70 bg-[linear-gradient(135deg,oklch(0.99_0_0)_0%,oklch(0.96_0_0)_58%,oklch(0.93_0_0)_100%)] p-4 shadow-sm">
                 <p className="text-xs font-medium text-muted-foreground">Ultimo contrato</p>
                 <p className="mt-2 truncate text-lg font-semibold text-foreground">{latestContract?.fullName ?? "Nenhum"}</p>
               </div>
             </section>
 
             <section className="grid gap-6 xl:grid-cols-[24rem_minmax(0,1fr)]">
-              <form id="novo-contrato" onSubmit={handleSubmit} className="rounded-lg border border-border/70 bg-background p-4 shadow-sm">
+              <form id="novo-contrato" onSubmit={handleSubmit} className="rounded-lg border border-border/70 bg-[linear-gradient(135deg,oklch(0.99_0_0)_0%,oklch(0.97_0_0)_50%,oklch(0.94_0_0)_100%)] p-4 shadow-sm">
                 <div className="flex items-center gap-2">
                   <UserRound className="h-4 w-4 text-muted-foreground" />
                   <h2 className="text-base font-semibold text-foreground">Novo contrato</h2>
@@ -248,7 +236,7 @@ export default function AdminPage() {
                 </div>
               </form>
 
-              <section className="min-w-0 rounded-lg border border-border/70 bg-background shadow-sm">
+              <section className="min-w-0 rounded-lg border border-border/70 bg-[linear-gradient(135deg,oklch(0.99_0_0)_0%,oklch(0.97_0_0)_50%,oklch(0.94_0_0)_100%)] shadow-sm">
                 <div className="flex flex-col gap-3 border-b border-border/70 p-4 lg:flex-row lg:items-center lg:justify-between">
                   <div>
                     <h2 className="text-base font-semibold text-foreground">Contratos</h2>
@@ -312,7 +300,7 @@ export default function AdminPage() {
                             <td className="px-4 py-4">
                               <div className="h-6 w-24 rounded-full bg-muted" />
                             </td>
-                            <td className="sticky right-0 bg-background px-3 py-4">
+                            <td className="sticky right-0 bg-[oklch(0.97_0_0)] px-3 py-4">
                               <div className="ml-auto h-9 w-9 rounded-lg bg-muted" />
                             </td>
                           </tr>
@@ -328,7 +316,7 @@ export default function AdminPage() {
                               {contract.plan || "Nao informado"}
                             </span>
                           </td>
-                          <td className="sticky right-0 bg-background px-3 py-3 text-right">
+                          <td className="sticky right-0 bg-[oklch(0.97_0_0)] px-3 py-3 text-right">
                             <Button
                               type="button"
                               variant="ghost"
