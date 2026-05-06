@@ -906,14 +906,14 @@ export default function DashboardPage() {
     const categoryName = categoryNameById.get(channel.category_id) ?? ""
     const haystack = `${channel.name} ${formattedName} ${categoryName}`.toLowerCase()
 
-    if (haystack.includes("hbo")) return "/channel-logos/hbo.png"
-    if (haystack.includes("globo")) return "/channel-logos/globo.png"
-    if (haystack.includes("sbt")) return "/channel-logos/sbt.png"
-    if (haystack.includes("esportes")) return "/channel-logos/esporte.png"
-    if (haystack.includes("espn")) return "/channel-logos/espn.png"
-    if (haystack.includes("premiere")) return "/channel-logos/premiere.png"
-    if (haystack.includes("sportv")) return "/channel-logos/sportv.png"
-    if (haystack.includes("amazon") || haystack.includes("prime")) return "/channel-logos/prime.png"
+    if (haystack.includes("hbo")) return "https://i.ibb.co/twR0Q0hd/hbo.png"
+    if (haystack.includes("globo")) return "https://i.ibb.co/Gv4k5Gcr/globo.png"
+    if (haystack.includes("sbt")) return "https://i.ibb.co/1J8nYkpT/sbt.png"
+    if (haystack.includes("esporte")) return "https://i.ibb.co/Lhtw3hFd/esporte.png"
+    if (haystack.includes("espn")) return "https://i.ibb.co/m5WK8KRQ/espn.png"
+    if (haystack.includes("premiere")) return "https://i.ibb.co/xt7TP3Lx/premiere.png"
+    if (haystack.includes("sportv")) return "https://i.ibb.co/RpNxzrr5/sportv.png"
+    if (haystack.includes("amazon") || haystack.includes("prime")) return "https://i.ibb.co/svCH18T2/prime.png"
 
     return ""
   }

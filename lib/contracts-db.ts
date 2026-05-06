@@ -26,8 +26,15 @@ type ContractInput = Omit<Contract, "id" | "createdAt">
 let pool: mysql.Pool | null = null
 let schemaReady: Promise<void> | null = null
 
+function firstEnv(...names: string[]) {
+  for (const name of names) {
+    const value = process.env[name]?.trim()
+    if (value) return value
+  }
+}
+
 function getDatabaseUrl() {
-  return process.env.MYSQL_URL || process.env.MYSQL_PUBLIC_URL || process.env.DATABASE_URL
+  return firstEnv("MYSQL_URL", "MYSQL_PUBLIC_URL", "DATABASE_URL")
 }
 
 function getPool() {
@@ -44,14 +51,16 @@ function getPool() {
     return pool
   }
 
-  const host = process.env.MYSQLHOST
-  const user = process.env.MYSQLUSER
-  const password = process.env.MYSQLPASSWORD
-  const database = process.env.MYSQLDATABASE
-  const port = Number(process.env.MYSQLPORT ?? 3306)
+  const host = firstEnv("MYSQLHOST", "MYSQL_HOST")
+  const user = firstEnv("MYSQLUSER", "MYSQL_USER")
+  const password = firstEnv("MYSQLPASSWORD", "MYSQL_PASSWORD", "MYSQL_ROOT_PASSWORD")
+  const database = firstEnv("MYSQLDATABASE", "MYSQL_DATABASE")
+  const port = Number(firstEnv("MYSQLPORT", "MYSQL_PORT") ?? 3306)
 
-  if (!host || !user || !database) {
-    throw new Error("Configure MYSQL_URL ou MYSQLHOST/MYSQLUSER/MYSQLPASSWORD/MYSQLDATABASE para usar o MySQL.")
+  if (!host || !user || !password || !database) {
+    throw new Error(
+      "Configure MYSQL_URL no servico do site ou MYSQLHOST/MYSQLUSER/MYSQLPASSWORD/MYSQLDATABASE para usar o MySQL.",
+    )
   }
 
   pool = mysql.createPool({
