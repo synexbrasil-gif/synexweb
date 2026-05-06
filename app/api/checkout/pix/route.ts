@@ -41,7 +41,7 @@ export async function POST(request: Request) {
   const accessToken = process.env.MERCADO_PAGO_ACCESS_TOKEN
 
   if (!accessToken) {
-    return NextResponse.json({ error: "Configure MERCADO_PAGO_ACCESS_TOKEN no ambiente." }, { status: 500 })
+    return NextResponse.json({ error: "Pagamento Pix indisponível no momento." }, { status: 500 })
   }
 
   const input = (await request.json()) as PixCheckoutInput
