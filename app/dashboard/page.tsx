@@ -82,7 +82,9 @@ const CHANNEL_FILTER_TERMS = ["ppv", "pay per view", "pay-per-view", "disney", "
 const BLACK_LOGO_TERMS = ["ppv", "pay per view", "pay-per-view", "disney", "paramount", "nba", "esporte", "esportes"]
 const PPV_CATEGORY_TERMS = ["ppv", "pay per view", "pay-per-view"]
 const SPORTS_CATEGORY_TERMS = ["esporte", "esportes"]
+const MOVIES_SERIES_CATEGORY_TERMS = ["filmes e series", "filmes series", "filmes", "series"]
 const SYNEX_SPORTS_CATEGORY_ID = "__synex_esportes__"
+const SYNEX_HBO_MAX_CATEGORY_ID = "__synex_hbo_max__"
 
 function normalizeFilterText(value: string) {
   return value
@@ -107,6 +109,20 @@ function isPpvCategory(...values: string[]) {
 
 function isSportsCategory(...values: string[]) {
   return matchesTerms(SPORTS_CATEGORY_TERMS, ...values)
+}
+
+function isMoviesSeriesCategory(...values: string[]) {
+  return matchesTerms(MOVIES_SERIES_CATEGORY_TERMS, ...values)
+}
+
+function isMaxChannel(...values: string[]) {
+  const haystack = normalizeFilterText(values.join(" "))
+  return /\bmax\b/.test(haystack)
+}
+
+function renameMaxChannelToHbo(name: string) {
+  if (normalizeFilterText(name).includes("hbo")) return name
+  return name.replace(/\bmax\b/gi, "HBO Max")
 }
 
 function shouldUseBlackLogo(...values: string[]) {
@@ -340,6 +356,8 @@ export default function DashboardPage() {
         const categoryById = new Map(serverCategories.map((cat) => [cat.category_id, cat.category_name]))
         const sportsCategory = serverCategories.find((cat) => isSportsCategory(cat.category_name))
         const sportsCategoryId = sportsCategory?.category_id ?? SYNEX_SPORTS_CATEGORY_ID
+        const hboMaxCategory = serverCategories.find((cat) => matchesTerms(["hbo", "hbo max"], cat.category_name))
+        const hboMaxCategoryId = hboMaxCategory?.category_id ?? SYNEX_HBO_MAX_CATEGORY_ID
         const ppvCategoryIds = new Set(
           serverCategories
             .filter((cat) => isPpvCategory(cat.category_name))
@@ -348,6 +366,7 @@ export default function DashboardPage() {
         const allowedCategoryIds = new Set<string>()
 
         for (const category of serverCategories) {
+          if (isMoviesSeriesCategory(category.category_name)) continue
           if (isPpvCategory(category.category_name)) continue
 
           if (matchesChannelFilter(category.category_name)) {
@@ -357,9 +376,16 @@ export default function DashboardPage() {
 
         const filteredServerChannels = serverChannels.flatMap((channel) => {
           const categoryName = categoryById.get(channel.category_id) ?? ""
+          if (isMoviesSeriesCategory(categoryName)) return []
+
           const isPpvChannel = ppvCategoryIds.has(channel.category_id) || isPpvCategory(channel.name, categoryName)
-          const normalizedChannel = isPpvChannel ? { ...channel, category_id: sportsCategoryId } : channel
-          const normalizedCategoryName = isPpvChannel ? "Esportes" : categoryName
+          const isSportsMaxChannel = isSportsCategory(categoryName) && isMaxChannel(channel.name)
+          const normalizedChannel = isSportsMaxChannel
+            ? { ...channel, category_id: hboMaxCategoryId, name: renameMaxChannelToHbo(channel.name) }
+            : isPpvChannel
+              ? { ...channel, category_id: sportsCategoryId }
+              : channel
+          const normalizedCategoryName = isSportsMaxChannel ? "HBO Max" : isPpvChannel ? "Esportes" : categoryName
           const isAllowed = matchesChannelFilter(normalizedChannel.name, normalizedCategoryName)
 
           if (isAllowed) {
@@ -370,6 +396,7 @@ export default function DashboardPage() {
         })
 
         const filteredCategories = serverCategories.filter((cat) => {
+          if (isMoviesSeriesCategory(cat.category_name)) return false
           if (isPpvCategory(cat.category_name)) return false
           return allowedCategoryIds.has(cat.category_id)
         })
@@ -378,6 +405,14 @@ export default function DashboardPage() {
           filteredCategories.push({
             category_id: SYNEX_SPORTS_CATEGORY_ID,
             category_name: "Esportes",
+            parent_id: 0,
+          })
+        }
+
+        if (!hboMaxCategory && allowedCategoryIds.has(SYNEX_HBO_MAX_CATEGORY_ID)) {
+          filteredCategories.push({
+            category_id: SYNEX_HBO_MAX_CATEGORY_ID,
+            category_name: "HBO Max",
             parent_id: 0,
           })
         }
