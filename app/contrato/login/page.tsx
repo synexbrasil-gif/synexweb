@@ -59,8 +59,8 @@ export default function ContratoLoginPage() {
         style={{ animation: "synex-fade-in-up 420ms ease-out both" }}
       >
         <CardHeader className="pb-2 text-center">
-          <CardTitle className="text-2xl font-bold text-foreground">Acessar Admin</CardTitle>
-          <p className="mt-2 text-sm text-muted-foreground">Entre para gerenciar a Synex.</p>
+          <CardTitle className="text-2xl font-bold text-foreground">Acessar Painel</CardTitle>
+          <p className="mt-2 text-sm text-muted-foreground">Entre para gerenciar.</p>
         </CardHeader>
         <CardContent className="pt-6">
           <form onSubmit={handleSubmit}>

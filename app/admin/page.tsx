@@ -179,8 +179,8 @@ export default function AdminPage() {
       <div className="gradient-glow gradient-glow-3" style={{ bottom: "-260px", left: "25%" }} />
 
       <div className="relative z-10 flex min-h-screen">
-        <aside className="hidden w-72 shrink-0 border-r border-border/70 bg-transparent lg:flex lg:flex-col">
-          <div className="flex h-[73px] flex-col justify-center border-b border-border/70 px-6">
+        <aside className="hidden w-72 shrink-0 border-r border-foreground/15 bg-transparent lg:flex lg:flex-col">
+          <div className="flex h-[73px] flex-col justify-center border-b border-foreground/15 px-6">
             <p className="text-sm font-semibold text-foreground">Synex Brasil</p>
             <p className="text-xs text-muted-foreground">Admin</p>
           </div>
@@ -195,7 +195,7 @@ export default function AdminPage() {
         </aside>
 
         <section className="min-w-0 flex-1">
-          <header className="sticky top-0 z-20 border-b border-border/70 bg-transparent px-4 backdrop-blur lg:px-8">
+          <header className="sticky top-0 z-20 border-b border-foreground/15 bg-transparent px-4 backdrop-blur lg:px-8">
             <div className="flex h-[73px] items-center justify-end">
               <div className="flex items-center gap-2">
                 <Button
