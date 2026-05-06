@@ -6,11 +6,9 @@ import {
   Eye,
   EyeOff,
   FileText,
-  LayoutDashboard,
   LogOut,
   Plus,
   Search,
-  Shield,
   Trash2,
   UserRound,
 } from "lucide-react"
@@ -173,24 +171,8 @@ export default function AdminPage() {
     <main className="min-h-screen bg-[oklch(0.96_0_0)] text-foreground">
       <div className="flex min-h-screen">
         <aside className="hidden w-72 shrink-0 border-r border-border/70 bg-background lg:flex lg:flex-col">
-          <div className="border-b border-border/70 p-6">
-            <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-foreground text-background">
-                <Shield className="h-5 w-5" />
-              </div>
-              <div>
-                <p className="text-sm font-semibold text-foreground">Synex Brasil</p>
-                <p className="text-xs text-muted-foreground">Admin</p>
-              </div>
-            </div>
-          </div>
-
-          <nav className="flex-1 space-y-1 p-4">
+          <nav className="flex-1 space-y-1 p-4 pt-6">
             <button className="flex w-full items-center gap-3 rounded-lg bg-foreground px-3 py-2.5 text-sm font-medium text-background">
-              <LayoutDashboard className="h-4 w-4" />
-              Dashboard
-            </button>
-            <button className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-foreground/70">
               <FileText className="h-4 w-4" />
               Contratos
             </button>
@@ -206,12 +188,7 @@ export default function AdminPage() {
 
         <section className="min-w-0 flex-1">
           <header className="sticky top-0 z-20 border-b border-border/70 bg-background/90 px-4 py-4 backdrop-blur lg:px-8">
-            <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-              <div>
-                <p className="text-xs font-semibold uppercase text-muted-foreground">Administracao Synex</p>
-                <h1 className="mt-1 text-2xl font-semibold tracking-normal text-foreground">Dashboard</h1>
-              </div>
-
+            <div className="flex justify-end">
               <div className="flex items-center gap-2">
                 <Button variant="outline" className="h-10 gap-2 rounded-lg lg:hidden" onClick={logout}>
                   <LogOut className="h-4 w-4" />
