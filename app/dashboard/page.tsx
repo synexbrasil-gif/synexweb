@@ -79,6 +79,7 @@ type AccountInfo = {
 }
 
 const CHANNEL_FILTER_TERMS = ["ppv", "pay per view", "pay-per-view", "disney", "paramount", "nba", "premiere", "amazon", "espn", "hbo", "esportes"]
+const BLACK_LOGO_TERMS = ["ppv", "pay per view", "pay-per-view", "disney", "paramount", "nba"]
 
 function normalizeFilterText(value: string) {
   return value
@@ -90,6 +91,11 @@ function normalizeFilterText(value: string) {
 function matchesChannelFilter(...values: string[]) {
   const haystack = normalizeFilterText(values.join(" "))
   return CHANNEL_FILTER_TERMS.some((term) => haystack.includes(term))
+}
+
+function shouldUseBlackLogo(...values: string[]) {
+  const haystack = normalizeFilterText(values.join(" "))
+  return BLACK_LOGO_TERMS.some((term) => haystack.includes(term))
 }
 
 declare global {
@@ -976,6 +982,16 @@ export default function DashboardPage() {
     return ""
   }
 
+  function getChannelImageClass(channel: Channel, formattedName: string, fallbackClass: string) {
+    const categoryName = categoryNameById.get(channel.category_id) ?? ""
+
+    if (shouldUseBlackLogo(channel.name, formattedName, categoryName)) {
+      return cn(fallbackClass, "brightness-0")
+    }
+
+    return fallbackClass
+  }
+
   function getChannelLogoClass(logoSrc: string) {
     if (logoSrc.includes("esporte")) {
       return "p-2"
@@ -1395,16 +1411,18 @@ export default function DashboardPage() {
                     const channelName = formatChannelName(channel.name)
                     const logoSrc = getChannelLogoSrc(channel, channelName)
                     const streamIconSrc = getStreamIconSrc(channel.stream_icon)
+                    const logoClass = logoSrc ? getChannelImageClass(channel, channelName, getChannelLogoClass(logoSrc)) : ""
+                    const streamIconClass = getChannelImageClass(channel, channelName, "p-8")
 
                     return (
                       <article key={channel.stream_id} className="group relative cursor-pointer overflow-hidden rounded-2xl border border-border/50 bg-[oklch(0.90_0_0)] shadow-lg shadow-foreground/5 transition-all duration-300 hover:scale-[1.02] hover:border-border hover:shadow-xl hover:shadow-foreground/10" onClick={() => selectChannel(channel)}>
                         <div className="relative aspect-video overflow-hidden bg-[linear-gradient(180deg,oklch(0.98_0_0)_0%,oklch(0.95_0_0)_58%,oklch(0.92_0_0)_100%)]">
                           {logoSrc ? (
                             <div className="flex h-full w-full items-center justify-center bg-transparent transition-transform duration-500 group-hover:scale-110">
-                              <img src={logoSrc} alt={channelName} className={cn("h-full w-full object-contain", getChannelLogoClass(logoSrc))} />
+                              <img src={logoSrc} alt={channelName} className={cn("h-full w-full object-contain", logoClass)} />
                             </div>
                           ) : streamIconSrc ? (
-                            <img src={streamIconSrc} alt={channelName} className="h-full w-full object-contain p-8 transition-transform duration-500 group-hover:scale-110" />
+                            <img src={streamIconSrc} alt={channelName} className={cn("h-full w-full object-contain transition-transform duration-500 group-hover:scale-110", streamIconClass)} />
                           ) : (
                             <div className="flex h-full w-full items-center justify-center bg-[linear-gradient(135deg,oklch(0.18_0.02_240),oklch(0.08_0.01_240))]">
                               <span className="text-5xl font-bold text-white/75">{channelName.slice(0, 1) || "S"}</span>
