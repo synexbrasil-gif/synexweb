@@ -7,7 +7,6 @@ import {
   EyeOff,
   FileText,
   LogOut,
-  Plus,
   Search,
   Trash2,
   UserRound,
@@ -195,16 +194,10 @@ export default function AdminPage() {
           <header className="sticky top-0 z-20 border-b border-border/70 bg-background/90 px-4 backdrop-blur lg:px-8">
             <div className="flex h-[73px] items-center justify-end">
               <div className="flex items-center gap-2">
-                <Button variant="outline" className="h-10 gap-2 rounded-lg lg:hidden" onClick={logout}>
+                <Button className="h-10 gap-2 rounded-lg bg-foreground text-background hover:bg-foreground/90" onClick={logout}>
                   <LogOut className="h-4 w-4" />
                   Sair
                 </Button>
-                <a href="#novo-contrato">
-                  <Button className="h-10 gap-2 rounded-lg bg-foreground text-background hover:bg-foreground/90">
-                    <Plus className="h-4 w-4" />
-                    Novo contrato
-                  </Button>
-                </a>
               </div>
             </div>
           </header>
