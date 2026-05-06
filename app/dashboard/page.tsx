@@ -1424,7 +1424,12 @@ export default function DashboardPage() {
           selectedChannel ? "min-h-full" : "h-full overflow-hidden"
         )}>
           {selectedChannel && (
-            <section className="mx-auto mb-8 w-full max-w-4xl">
+            <FadeIn
+              key={`player-${selectedChannel.stream_id}`}
+              direction="up"
+              duration={360}
+              className="mx-auto mb-8 w-full max-w-4xl"
+            >
               <div
                 ref={playerRef}
                 className="group relative aspect-video w-full overflow-hidden rounded-2xl bg-[oklch(0.08_0.01_240)] shadow-[0_28px_80px_rgba(0,0,0,0.28)]"
@@ -1527,7 +1532,7 @@ export default function DashboardPage() {
                 </div>
               )}
               </div>
-            </section>
+            </FadeIn>
           )}
 
           <section className={cn(
