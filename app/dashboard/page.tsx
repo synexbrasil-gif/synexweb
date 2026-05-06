@@ -117,8 +117,11 @@ function isMoviesSeriesCategory(...values: string[]) {
 
 function getSportsMaxChannelNumber(...values: string[]) {
   const haystack = normalizeFilterText(values.join(" "))
-  const match = haystack.match(/\bmax\b(?:\D{0,12})\b0?([1-7])\b/)
+  if (!/\bmax\b/.test(haystack)) return null
+
+  const match = haystack.match(/\b0?([1-7])\b/)
   if (!match) return null
+
   return match[1].padStart(2, "0")
 }
 
@@ -380,7 +383,7 @@ export default function DashboardPage() {
           if (isMoviesSeriesCategory(categoryName)) return []
 
           const isPpvChannel = ppvCategoryIds.has(channel.category_id) || isPpvCategory(channel.name, categoryName)
-          const sportsMaxChannelNumber = isSportsCategory(categoryName) ? getSportsMaxChannelNumber(channel.name) : null
+          const sportsMaxChannelNumber = getSportsMaxChannelNumber(channel.name)
           const isSportsMaxChannel = Boolean(sportsMaxChannelNumber)
           const normalizedChannel = isSportsMaxChannel
             ? { ...channel, category_id: hboMaxCategoryId, name: formatHboMaxChannelName(sportsMaxChannelNumber as string) }
