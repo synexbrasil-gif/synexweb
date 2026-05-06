@@ -115,14 +115,15 @@ function isMoviesSeriesCategory(...values: string[]) {
   return matchesTerms(MOVIES_SERIES_CATEGORY_TERMS, ...values)
 }
 
-function isMaxChannel(...values: string[]) {
+function getSportsMaxChannelNumber(...values: string[]) {
   const haystack = normalizeFilterText(values.join(" "))
-  return /\bmax\b/.test(haystack)
+  const match = haystack.match(/\bmax\s*0?([1-7])\b/)
+  if (!match) return null
+  return match[1].padStart(2, "0")
 }
 
-function renameMaxChannelToHbo(name: string) {
-  if (normalizeFilterText(name).includes("hbo")) return name
-  return name.replace(/\bmax\b/gi, "HBO Max")
+function formatHboMaxChannelName(channelNumber: string) {
+  return `HBO Max ${channelNumber}`
 }
 
 function shouldUseBlackLogo(...values: string[]) {
@@ -379,9 +380,10 @@ export default function DashboardPage() {
           if (isMoviesSeriesCategory(categoryName)) return []
 
           const isPpvChannel = ppvCategoryIds.has(channel.category_id) || isPpvCategory(channel.name, categoryName)
-          const isSportsMaxChannel = isSportsCategory(categoryName) && isMaxChannel(channel.name)
+          const sportsMaxChannelNumber = isSportsCategory(categoryName) ? getSportsMaxChannelNumber(channel.name) : null
+          const isSportsMaxChannel = Boolean(sportsMaxChannelNumber)
           const normalizedChannel = isSportsMaxChannel
-            ? { ...channel, category_id: hboMaxCategoryId, name: renameMaxChannelToHbo(channel.name) }
+            ? { ...channel, category_id: hboMaxCategoryId, name: formatHboMaxChannelName(sportsMaxChannelNumber as string) }
             : isPpvChannel
               ? { ...channel, category_id: sportsCategoryId }
               : channel
