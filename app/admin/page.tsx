@@ -171,7 +171,12 @@ export default function AdminPage() {
     <main className="min-h-screen bg-[oklch(0.96_0_0)] text-foreground">
       <div className="flex min-h-screen">
         <aside className="hidden w-72 shrink-0 border-r border-border/70 bg-background lg:flex lg:flex-col">
-          <nav className="flex-1 space-y-1 p-4 pt-6">
+          <div className="border-b border-border/70 p-6">
+            <p className="text-sm font-semibold text-foreground">Synex Brasil</p>
+            <p className="text-xs text-muted-foreground">Admin</p>
+          </div>
+
+          <nav className="flex-1 space-y-1 p-4">
             <button className="flex w-full items-center gap-3 rounded-lg bg-foreground px-3 py-2.5 text-sm font-medium text-background">
               <FileText className="h-4 w-4" />
               Contratos
