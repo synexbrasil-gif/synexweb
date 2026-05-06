@@ -2,7 +2,7 @@
 
 import { FormEvent, useEffect, useMemo, useState } from "react"
 import type { ReactNode } from "react"
-import { Check, QrCode, ShieldCheck, Smartphone, UserRound } from "lucide-react"
+import { Smartphone, UserRound } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -19,7 +19,7 @@ const plans = [
     id: "trimestral",
     name: "Trimestral",
     price: "49,90",
-    description: "Melhor custo-beneficio",
+    description: "Melhor custo-benefício",
   },
   {
     id: "anual",
@@ -75,13 +75,10 @@ export default function CheckoutPage() {
             <div className="flex items-start justify-between gap-4 border-b border-border/70 pb-5">
               <div>
                 <p className="text-xs font-semibold uppercase text-muted-foreground">Checkout Pix</p>
-                <h1 className="mt-2 text-3xl font-bold tracking-tight text-foreground">Finalizar contratacao</h1>
+                <h1 className="mt-2 text-3xl font-bold tracking-tight text-foreground">Finalizar contratação</h1>
                 <p className="mt-2 max-w-xl text-sm text-muted-foreground">
                   Preencha seus dados para preparar o pagamento via Pix.
                 </p>
-              </div>
-              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-foreground text-background">
-                <QrCode className="h-5 w-5" />
               </div>
             </div>
 
@@ -106,11 +103,6 @@ export default function CheckoutPage() {
                       >
                         <div className="flex items-center justify-between gap-3">
                           <span className="text-sm font-semibold text-foreground">{item.name}</span>
-                          {isActive && (
-                            <span className="flex h-5 w-5 items-center justify-center rounded-full bg-foreground text-background">
-                              <Check className="h-3 w-3" />
-                            </span>
-                          )}
                         </div>
                         <p className="mt-1 text-xs text-muted-foreground">{item.description}</p>
                         <p className="mt-4 text-2xl font-bold text-foreground">
@@ -172,9 +164,8 @@ export default function CheckoutPage() {
             </div>
 
             <div className="mt-5 space-y-3">
-              {["Pagamento via Pix", "Acesso liberado apos confirmacao", "Dados protegidos na contratacao"].map((item) => (
+              {["Pagamento via Pix", "Acesso liberado após confirmação", "Dados protegidos na contratação"].map((item) => (
                 <div key={item} className="flex items-center gap-3 rounded-xl bg-background/55 p-3">
-                  <ShieldCheck className="h-4 w-4 shrink-0 text-foreground" />
                   <span className="text-sm text-muted-foreground">{item}</span>
                 </div>
               ))}
