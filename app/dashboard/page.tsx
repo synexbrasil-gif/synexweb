@@ -274,57 +274,84 @@ export default function DashboardPage() {
       const allowed = [
         "premiere", "espn", "amazon", "hbo", "globo", "sbt", "esportes", "sportv"
       ]
-      for (const server of IPTV_SERVERS) {
-        try {
-          if (cancelled) return
-          const response = await fetchWithTimeout(buildApiUrl(server, username, password, "get_live_categories"), 10000)
-          if (cancelled) return
+      const loadServerData = async (server: string) => {
+        const startedAt = performance.now()
+        const response = await fetchWithTimeout(buildApiUrl(server, username, password, "get_live_categories"), 10000)
 
-          if (response.ok) {
-            const data = await response.json()
-            if (cancelled) return
+        if (!response.ok) return null
 
-            if (Array.isArray(data) && data.length > 0) {
-              setWorkingServer(server)
-              const filteredCategories = data.filter((cat: Category) =>
-                allowed.some(word => cat.category_name.toLowerCase().includes(word))
-              )
-              setCategories(filteredCategories)
+        const data = await response.json()
+        if (!Array.isArray(data) || data.length === 0) return null
 
-              try {
-                const accountResponse = await fetchWithTimeout(buildAccountApiUrl(server, username, password), 10000)
-                if (!cancelled && accountResponse.ok) {
-                  const accountData = await accountResponse.json()
-                  if (accountData && typeof accountData === "object") {
-                    setAccountInfo(accountData)
-                  }
-                }
-              } catch (err) {
-                if (!cancelled) setAccountInfo(null)
-              }
+        const filteredCategories = data.filter((cat: Category) =>
+          allowed.some(word => cat.category_name.toLowerCase().includes(word))
+        )
 
-              const channelsResponse = await fetchWithTimeout(buildApiUrl(server, username, password, "get_live_streams"), 15000)
-              if (cancelled) return
+        if (filteredCategories.length === 0) return null
 
-              if (channelsResponse.ok) {
-                const channelsData = await channelsResponse.json()
-                if (cancelled) return
-                setChannels(Array.isArray(channelsData) ? channelsData : [])
-              } else {
-                setChannels([])
-              }
-              setIsLoading(false)
-              window.clearTimeout(connectionTimeout)
-              return
-            }
+        const [accountResult, channelsResult] = await Promise.allSettled([
+          fetchWithTimeout(buildAccountApiUrl(server, username, password), 10000),
+          fetchWithTimeout(buildApiUrl(server, username, password, "get_live_streams"), 15000),
+        ])
+
+        let serverAccountInfo: AccountInfo | null = null
+        if (accountResult.status === "fulfilled" && accountResult.value.ok) {
+          const accountData = await accountResult.value.json()
+          if (accountData && typeof accountData === "object") {
+            serverAccountInfo = accountData
           }
-        } catch (err) {
-          if (cancelled) return
-          console.log(`Server ${server} failed, trying next...`)
+        }
+
+        let serverChannels: Channel[] = []
+        if (channelsResult.status === "fulfilled" && channelsResult.value.ok) {
+          const channelsData = await channelsResult.value.json()
+          serverChannels = Array.isArray(channelsData) ? channelsData : []
+        }
+
+        return {
+          server,
+          accountInfo: serverAccountInfo,
+          categories: filteredCategories,
+          channels: serverChannels,
+          latencyMs: performance.now() - startedAt,
         }
       }
+
+      const serverResults = await Promise.all(
+        IPTV_SERVERS.map(async (server) => {
+          try {
+            if (cancelled) return null
+            return await loadServerData(server)
+          } catch (err) {
+            console.log(`Server ${server} failed, trying next...`)
+            return null
+          }
+        }),
+      )
+
       if (cancelled) return
-      setError("Nenhum servidor disponível. Verifique suas credenciais.")
+
+      const bestServer = serverResults
+        .filter((result): result is NonNullable<typeof result> => Boolean(result))
+        .sort((a, b) => {
+          const aHasChannels = a.channels.length > 0
+          const bHasChannels = b.channels.length > 0
+
+          if (aHasChannels !== bHasChannels) return bHasChannels ? 1 : -1
+          return a.latencyMs - b.latencyMs
+        })[0]
+
+      if (!bestServer) {
+        setError("Nenhum servidor disponivel. Verifique suas credenciais.")
+        setIsLoading(false)
+        window.clearTimeout(connectionTimeout)
+        return
+      }
+
+      setWorkingServer(bestServer.server)
+      setAccountInfo(bestServer.accountInfo)
+      setCategories(bestServer.categories)
+      setChannels(bestServer.channels)
       setIsLoading(false)
       window.clearTimeout(connectionTimeout)
     }
