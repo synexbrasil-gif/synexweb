@@ -34,6 +34,15 @@ export default function CheckoutPage() {
   const [fullName, setFullName] = useState("")
   const [phone, setPhone] = useState("")
   const [submitted, setSubmitted] = useState(false)
+  const [isGeneratingPix, setIsGeneratingPix] = useState(false)
+  const [pixError, setPixError] = useState("")
+  const [pixPayment, setPixPayment] = useState<{
+    id?: number
+    status?: string
+    qrCode?: string
+    qrCodeBase64?: string
+    ticketUrl?: string
+  } | null>(null)
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
@@ -51,11 +60,42 @@ export default function CheckoutPage() {
 
   const canSubmit = fullName.trim().length > 2 && phone.replace(/\D/g, "").length >= 10
 
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     setSubmitted(true)
+    setPixError("")
+    setPixPayment(null)
 
     if (!canSubmit) return
+
+    setIsGeneratingPix(true)
+
+    try {
+      const response = await fetch("/api/checkout/pix", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          fullName,
+          phone,
+          planId: selectedPlan,
+        }),
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        setPixError(data?.error ?? "Não foi possível gerar o Pix.")
+        return
+      }
+
+      setPixPayment(data)
+    } catch {
+      setPixError("Não foi possível gerar o Pix.")
+    } finally {
+      setIsGeneratingPix(false)
+    }
   }
 
   return (
@@ -136,14 +176,54 @@ export default function CheckoutPage() {
                 />
               </div>
 
-              <Button type="submit" className="h-12 w-full rounded-xl bg-foreground text-base text-background hover:bg-foreground/90">
-                Continuar para Pix
+              {pixError && <p className="text-sm font-medium text-destructive">{pixError}</p>}
+
+              <Button
+                type="submit"
+                className="h-12 w-full rounded-xl bg-foreground text-base text-background hover:bg-foreground/90"
+                disabled={isGeneratingPix}
+              >
+                {isGeneratingPix ? "Gerando Pix..." : "Gerar Pix"}
               </Button>
 
-              {submitted && canSubmit && (
-                <div className="rounded-xl border border-border/70 bg-background/60 p-4 text-sm text-muted-foreground">
-                  Estrutura pronta. Na proxima etapa a API vai gerar o Pix para{" "}
-                  <span className="font-semibold text-foreground">{fullName.trim()}</span>.
+              {pixPayment && (
+                <div className="space-y-4 rounded-xl border border-border/70 bg-background/60 p-4">
+                  <div>
+                    <p className="text-sm font-semibold text-foreground">Pix gerado</p>
+                    <p className="mt-1 text-xs text-muted-foreground">Use o QR Code ou o código copia e cola para pagar.</p>
+                  </div>
+
+                  {pixPayment.qrCodeBase64 && (
+                    <div className="flex justify-center rounded-xl bg-white p-4">
+                      <img
+                        src={`data:image/png;base64,${pixPayment.qrCodeBase64}`}
+                        alt="QR Code Pix"
+                        className="h-48 w-48"
+                      />
+                    </div>
+                  )}
+
+                  {pixPayment.qrCode && (
+                    <div>
+                      <label className="text-xs font-medium text-muted-foreground" htmlFor="pix-code">
+                        Código Pix copia e cola
+                      </label>
+                      <textarea
+                        id="pix-code"
+                        readOnly
+                        value={pixPayment.qrCode}
+                        className="mt-2 min-h-24 w-full resize-none rounded-xl border border-border/70 bg-background/80 p-3 text-xs text-foreground outline-none"
+                      />
+                    </div>
+                  )}
+
+                  {pixPayment.ticketUrl && (
+                    <Button asChild variant="outline" className="h-11 w-full rounded-xl bg-background/70">
+                      <a href={pixPayment.ticketUrl} target="_blank" rel="noopener noreferrer">
+                        Abrir pagamento
+                      </a>
+                    </Button>
+                  )}
                 </div>
               )}
             </div>
