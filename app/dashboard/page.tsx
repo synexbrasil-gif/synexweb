@@ -79,7 +79,8 @@ type AccountInfo = {
 }
 
 const CHANNEL_FILTER_TERMS = ["ppv", "pay per view", "pay-per-view", "disney", "paramount", "nba", "premiere", "amazon", "espn", "hbo", "cazetv", "caze tv", "goat", "ufc", "dazn", "ge tv", "ge fast", "globo"]
-const BLACK_LOGO_TERMS = ["ppv", "pay per view", "pay-per-view", "disney", "paramount", "nba", "esporte", "esportes"]
+const BLACK_LOGO_TERMS = ["ppv", "pay per view", "pay-per-view", "disney", "paramount", "nba", "esporte", "esportes", "goat", "ufc", "dazn"]
+const LARGE_LOGO_TERMS = ["disney", "paramount"]
 const PPV_CATEGORY_TERMS = ["ppv", "pay per view", "pay-per-view"]
 const SPORTS_CATEGORY_TERMS = ["esporte", "esportes"]
 const MOVIES_SERIES_CATEGORY_TERMS = ["filmes e series", "filmes series", "filmes", "series"]
@@ -179,6 +180,11 @@ function getRequestedChannelMapping(name: string, globoCategoryId: string) {
 function shouldUseBlackLogo(...values: string[]) {
   const haystack = normalizeFilterText(values.join(" "))
   return BLACK_LOGO_TERMS.some((term) => haystack.includes(term))
+}
+
+function shouldUseLargeLogo(...values: string[]) {
+  const haystack = normalizeFilterText(values.join(" "))
+  return LARGE_LOGO_TERMS.some((term) => haystack.includes(term))
 }
 
 declare global {
@@ -1137,12 +1143,13 @@ export default function DashboardPage() {
 
   function getChannelImageClass(channel: Channel, formattedName: string, fallbackClass: string) {
     const categoryName = categoryNameById.get(channel.category_id) ?? ""
+    const imageClass = shouldUseLargeLogo(channel.name, formattedName, categoryName) ? "p-3" : fallbackClass
 
     if (shouldUseBlackLogo(channel.name, formattedName, categoryName)) {
-      return cn(fallbackClass, "brightness-0")
+      return cn(imageClass, "brightness-0")
     }
 
-    return fallbackClass
+    return imageClass
   }
 
   function getChannelLogoClass(logoSrc: string) {
