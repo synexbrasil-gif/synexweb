@@ -171,7 +171,7 @@ export default function AdminPage() {
     <main className="min-h-screen bg-[oklch(0.96_0_0)] text-foreground">
       <div className="flex min-h-screen">
         <aside className="hidden w-72 shrink-0 border-r border-border/70 bg-background lg:flex lg:flex-col">
-          <div className="border-b border-border/70 p-6">
+          <div className="flex h-[73px] flex-col justify-center border-b border-border/70 px-6">
             <p className="text-sm font-semibold text-foreground">Synex Brasil</p>
             <p className="text-xs text-muted-foreground">Admin</p>
           </div>
@@ -192,8 +192,8 @@ export default function AdminPage() {
         </aside>
 
         <section className="min-w-0 flex-1">
-          <header className="sticky top-0 z-20 border-b border-border/70 bg-background/90 px-4 py-4 backdrop-blur lg:px-8">
-            <div className="flex justify-end">
+          <header className="sticky top-0 z-20 border-b border-border/70 bg-background/90 px-4 backdrop-blur lg:px-8">
+            <div className="flex h-[73px] items-center justify-end">
               <div className="flex items-center gap-2">
                 <Button variant="outline" className="h-10 gap-2 rounded-lg lg:hidden" onClick={logout}>
                   <LogOut className="h-4 w-4" />
@@ -236,7 +236,7 @@ export default function AdminPage() {
                   <AdminField label="Nome completo" value={fullName} onChange={setFullName} placeholder="Nome do cliente" />
                   <AdminField label="Usuario" value={username} onChange={setUsername} placeholder="Usuario de acesso" />
                   <AdminField label="Senha" value={password} onChange={setPassword} placeholder="Senha de acesso" type="password" />
-                  <AdminField label="Data de ativacao" value={activationDate} onChange={setActivationDate} placeholder="dd/mm/aaaa" />
+                  <AdminField label="Data de ativação" value={activationDate} onChange={(value) => setActivationDate(formatActivationDate(value))} placeholder="dd/mm/aaaa" inputMode="numeric" maxLength={10} />
                   <AdminField label="Plano" value={plan} onChange={setPlan} placeholder="Mensal, Trimestral ou Anual" />
 
                   {error && <p className="text-sm font-medium text-destructive">{error}</p>}
@@ -285,9 +285,9 @@ export default function AdminPage() {
                         <th className="w-72 px-4 py-3 font-semibold">Nome completo</th>
                         <th className="px-4 py-3 font-semibold">Usuario</th>
                         <th className="px-4 py-3 font-semibold">Senha</th>
-                        <th className="px-4 py-3 font-semibold">Ativacao</th>
+                        <th className="px-4 py-3 font-semibold">Ativação</th>
                         <th className="px-4 py-3 font-semibold">Plano</th>
-                        <th className="sticky right-0 w-24 bg-muted px-3 py-3 text-right font-semibold">Acoes</th>
+                        <th className="sticky right-0 w-24 bg-muted px-3 py-3 text-right font-semibold">Ações</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -343,12 +343,16 @@ function AdminField({
   onChange,
   placeholder,
   type = "text",
+  inputMode,
+  maxLength,
 }: {
   label: string
   value: string
   onChange: (value: string) => void
   placeholder: string
   type?: string
+  inputMode?: "none" | "text" | "tel" | "url" | "email" | "numeric" | "decimal" | "search"
+  maxLength?: number
 }) {
   return (
     <label className="block">
@@ -359,7 +363,18 @@ function AdminField({
         className={cn("mt-1 h-11 rounded-lg bg-card", type === "password" && "font-mono")}
         placeholder={placeholder}
         type={type}
+        inputMode={inputMode}
+        maxLength={maxLength}
       />
     </label>
   )
+}
+
+function formatActivationDate(value: string) {
+  const digits = value.replace(/\D/g, "").slice(0, 8)
+
+  if (digits.length <= 2) return digits
+  if (digits.length <= 4) return `${digits.slice(0, 2)}/${digits.slice(2)}`
+
+  return `${digits.slice(0, 2)}/${digits.slice(2, 4)}/${digits.slice(4)}`
 }
