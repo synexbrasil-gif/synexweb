@@ -1169,7 +1169,7 @@ export default function DashboardPage() {
             </Button>
           </div>
 
-          <nav className="space-y-2">
+          <nav className="flex min-h-0 flex-1 flex-col">
             <div className="px-3 pb-1 pt-1">
               <p className="text-[11px] font-semibold uppercase text-muted-foreground/70">
                 Categorias
@@ -1201,33 +1201,35 @@ export default function DashboardPage() {
               <div className="h-px bg-gradient-to-r from-transparent via-sidebar-border to-transparent" />
             </div>
 
-            {categories.map((cat) => {
-              const isActive = selectedCategory?.category_id === cat.category_id
+            <div className="min-h-0 flex-1 space-y-2 overflow-y-auto overscroll-contain pr-1">
+              {categories.map((cat) => {
+                const isActive = selectedCategory?.category_id === cat.category_id
 
-              return (
-                <button
-                  key={cat.category_id}
-                  onClick={() => {
-                    setSelectedCategory(cat)
-                    setPanelOpen(false)
-                  }}
-                  className={cn(
-                    "group flex w-full items-center justify-between gap-3 rounded-xl px-3 py-3 text-sm font-medium transition-all duration-200",
-                    isActive
-                      ? "bg-[linear-gradient(135deg,oklch(0.99_0_0)_0%,oklch(0.94_0_0)_58%,oklch(0.90_0_0)_100%)] text-sidebar-accent-foreground shadow-md shadow-foreground/5"
-                      : "text-sidebar-foreground/70 hover:bg-white/35 hover:text-sidebar-foreground hover:shadow-sm"
-                  )}
-                >
-                  <span className="truncate">{formatCategoryName(cat.category_name)}</span>
-                  <span className={cn(
-                    "rounded-full px-2 py-0.5 text-[10px] font-semibold",
-                    isActive ? "bg-foreground/10 text-foreground" : "bg-foreground/5 text-muted-foreground"
-                  )}>
-                    {categoryChannelCountById.get(cat.category_id) ?? 0}
-                  </span>
-                </button>
-              )
-            })}
+                return (
+                  <button
+                    key={cat.category_id}
+                    onClick={() => {
+                      setSelectedCategory(cat)
+                      setPanelOpen(false)
+                    }}
+                    className={cn(
+                      "group flex w-full items-center justify-between gap-3 rounded-xl px-3 py-3 text-sm font-medium transition-all duration-200",
+                      isActive
+                        ? "bg-[linear-gradient(135deg,oklch(0.99_0_0)_0%,oklch(0.94_0_0)_58%,oklch(0.90_0_0)_100%)] text-sidebar-accent-foreground shadow-md shadow-foreground/5"
+                        : "text-sidebar-foreground/70 hover:bg-white/35 hover:text-sidebar-foreground hover:shadow-sm"
+                    )}
+                  >
+                    <span className="truncate">{formatCategoryName(cat.category_name)}</span>
+                    <span className={cn(
+                      "rounded-full px-2 py-0.5 text-[10px] font-semibold",
+                      isActive ? "bg-foreground/10 text-foreground" : "bg-foreground/5 text-muted-foreground"
+                    )}>
+                      {categoryChannelCountById.get(cat.category_id) ?? 0}
+                    </span>
+                  </button>
+                )
+              })}
+            </div>
           </nav>
 
         </div>
