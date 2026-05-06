@@ -80,6 +80,9 @@ type AccountInfo = {
 
 const CHANNEL_FILTER_TERMS = ["ppv", "pay per view", "pay-per-view", "disney", "paramount", "nba", "premiere", "amazon", "espn", "hbo", "esportes"]
 const BLACK_LOGO_TERMS = ["ppv", "pay per view", "pay-per-view", "disney", "paramount", "nba", "esporte", "esportes"]
+const PPV_CATEGORY_TERMS = ["ppv", "pay per view", "pay-per-view"]
+const SPORTS_CATEGORY_TERMS = ["esporte", "esportes"]
+const SYNEX_SPORTS_CATEGORY_ID = "__synex_esportes__"
 
 function normalizeFilterText(value: string) {
   return value
@@ -91,6 +94,19 @@ function normalizeFilterText(value: string) {
 function matchesChannelFilter(...values: string[]) {
   const haystack = normalizeFilterText(values.join(" "))
   return CHANNEL_FILTER_TERMS.some((term) => haystack.includes(term))
+}
+
+function matchesTerms(terms: string[], ...values: string[]) {
+  const haystack = normalizeFilterText(values.join(" "))
+  return terms.some((term) => haystack.includes(term))
+}
+
+function isPpvCategory(...values: string[]) {
+  return matchesTerms(PPV_CATEGORY_TERMS, ...values)
+}
+
+function isSportsCategory(...values: string[]) {
+  return matchesTerms(SPORTS_CATEGORY_TERMS, ...values)
 }
 
 function shouldUseBlackLogo(...values: string[]) {
@@ -322,26 +338,49 @@ export default function DashboardPage() {
         }
 
         const categoryById = new Map(serverCategories.map((cat) => [cat.category_id, cat.category_name]))
+        const sportsCategory = serverCategories.find((cat) => isSportsCategory(cat.category_name))
+        const sportsCategoryId = sportsCategory?.category_id ?? SYNEX_SPORTS_CATEGORY_ID
+        const ppvCategoryIds = new Set(
+          serverCategories
+            .filter((cat) => isPpvCategory(cat.category_name))
+            .map((cat) => cat.category_id),
+        )
         const allowedCategoryIds = new Set<string>()
 
         for (const category of serverCategories) {
+          if (isPpvCategory(category.category_name)) continue
+
           if (matchesChannelFilter(category.category_name)) {
             allowedCategoryIds.add(category.category_id)
           }
         }
 
-        const filteredServerChannels = serverChannels.filter((channel) => {
+        const filteredServerChannels = serverChannels.flatMap((channel) => {
           const categoryName = categoryById.get(channel.category_id) ?? ""
-          const isAllowed = matchesChannelFilter(channel.name, categoryName)
+          const isPpvChannel = ppvCategoryIds.has(channel.category_id) || isPpvCategory(channel.name, categoryName)
+          const normalizedChannel = isPpvChannel ? { ...channel, category_id: sportsCategoryId } : channel
+          const normalizedCategoryName = isPpvChannel ? "Esportes" : categoryName
+          const isAllowed = matchesChannelFilter(normalizedChannel.name, normalizedCategoryName)
 
           if (isAllowed) {
-            allowedCategoryIds.add(channel.category_id)
+            allowedCategoryIds.add(normalizedChannel.category_id)
           }
 
-          return isAllowed
+          return isAllowed ? [normalizedChannel] : []
         })
 
-        const filteredCategories = serverCategories.filter((cat) => allowedCategoryIds.has(cat.category_id))
+        const filteredCategories = serverCategories.filter((cat) => {
+          if (isPpvCategory(cat.category_name)) return false
+          return allowedCategoryIds.has(cat.category_id)
+        })
+
+        if (!sportsCategory && allowedCategoryIds.has(SYNEX_SPORTS_CATEGORY_ID)) {
+          filteredCategories.push({
+            category_id: SYNEX_SPORTS_CATEGORY_ID,
+            category_name: "Esportes",
+            parent_id: 0,
+          })
+        }
 
         if (filteredCategories.length === 0 || filteredServerChannels.length === 0) return null
 
