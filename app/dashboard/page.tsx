@@ -499,6 +499,12 @@ export default function DashboardPage() {
           }
         }
 
+        filteredCategories.sort((a, b) =>
+          formatCategoryName(a.category_name).localeCompare(formatCategoryName(b.category_name), "pt-BR", {
+            sensitivity: "base",
+          }),
+        )
+
         if (filteredCategories.length === 0 || filteredServerChannels.length === 0) return null
 
         return {
@@ -1130,6 +1136,7 @@ export default function DashboardPage() {
     const categoryName = categoryNameById.get(channel.category_id) ?? ""
     const haystack = `${channel.name} ${formattedName} ${categoryName}`.toLowerCase()
 
+    if (haystack.includes("cazetv") || haystack.includes("caze tv")) return "https://i.ibb.co/Ld7kdJn6/cazetv.png"
     if (haystack.includes("hbo")) return "https://i.ibb.co/twR0Q0hd/hbo.png"
     if (haystack.includes("globo")) return "https://i.ibb.co/Gv4k5Gcr/globo.png"
     if (haystack.includes("sbt")) return "https://i.ibb.co/1J8nYkpT/sbt.png"
