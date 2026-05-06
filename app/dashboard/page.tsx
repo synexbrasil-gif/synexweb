@@ -83,6 +83,7 @@ const BLACK_LOGO_TERMS = ["ppv", "pay per view", "pay-per-view", "disney", "para
 const PPV_CATEGORY_TERMS = ["ppv", "pay per view", "pay-per-view"]
 const SPORTS_CATEGORY_TERMS = ["esporte", "esportes"]
 const MOVIES_SERIES_CATEGORY_TERMS = ["filmes e series", "filmes series", "filmes", "series"]
+const HIDDEN_CATEGORY_TERMS = ["esporte", "esportes", "variedades", "noticias"]
 const SYNTHETIC_CATEGORY_TERMS = ["cazetv", "caze tv", "goat", "ufc", "dazn"]
 const SYNEX_SPORTS_CATEGORY_ID = "__synex_esportes__"
 const SYNEX_HBO_MAX_CATEGORY_ID = "__synex_hbo_max__"
@@ -119,6 +120,10 @@ function isSportsCategory(...values: string[]) {
 
 function isMoviesSeriesCategory(...values: string[]) {
   return matchesTerms(MOVIES_SERIES_CATEGORY_TERMS, ...values)
+}
+
+function isHiddenCategory(...values: string[]) {
+  return matchesTerms(HIDDEN_CATEGORY_TERMS, ...values)
 }
 
 function isSyntheticRequestedCategory(...values: string[]) {
@@ -415,6 +420,7 @@ export default function DashboardPage() {
 
         for (const category of serverCategories) {
           if (isMoviesSeriesCategory(category.category_name)) continue
+          if (isHiddenCategory(category.category_name)) continue
           if (isPpvCategory(category.category_name)) continue
           if (isSyntheticRequestedCategory(category.category_name)) continue
 
@@ -439,6 +445,8 @@ export default function DashboardPage() {
               ? { ...channel, category_id: sportsCategoryId }
               : channel
           const normalizedCategoryName = requestedChannelMapping?.categoryName ?? (isSportsMaxChannel ? "HBO Max" : isPpvChannel ? "Esportes" : categoryName)
+          if (isHiddenCategory(normalizedCategoryName)) return []
+
           const isAllowed = matchesChannelFilter(normalizedChannel.name, normalizedCategoryName)
 
           if (isAllowed) {
@@ -450,18 +458,11 @@ export default function DashboardPage() {
 
         const filteredCategories = serverCategories.filter((cat) => {
           if (isMoviesSeriesCategory(cat.category_name)) return false
+          if (isHiddenCategory(cat.category_name)) return false
           if (isPpvCategory(cat.category_name)) return false
           if (isSyntheticRequestedCategory(cat.category_name)) return false
           return allowedCategoryIds.has(cat.category_id)
         })
-
-        if (!sportsCategory && allowedCategoryIds.has(SYNEX_SPORTS_CATEGORY_ID)) {
-          filteredCategories.push({
-            category_id: SYNEX_SPORTS_CATEGORY_ID,
-            category_name: "Esportes",
-            parent_id: 0,
-          })
-        }
 
         if (!hboMaxCategory && allowedCategoryIds.has(SYNEX_HBO_MAX_CATEGORY_ID)) {
           filteredCategories.push({
