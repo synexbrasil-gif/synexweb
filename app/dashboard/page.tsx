@@ -78,13 +78,19 @@ type AccountInfo = {
   }
 }
 
-const CHANNEL_FILTER_TERMS = ["ppv", "pay per view", "pay-per-view", "disney", "paramount", "nba", "premiere", "amazon", "espn", "hbo", "esportes"]
+const CHANNEL_FILTER_TERMS = ["ppv", "pay per view", "pay-per-view", "disney", "paramount", "nba", "premiere", "amazon", "espn", "hbo", "esportes", "cazetv", "caze tv", "goat", "ufc", "dazn", "ge tv", "ge fast", "globo"]
 const BLACK_LOGO_TERMS = ["ppv", "pay per view", "pay-per-view", "disney", "paramount", "nba", "esporte", "esportes"]
 const PPV_CATEGORY_TERMS = ["ppv", "pay per view", "pay-per-view"]
 const SPORTS_CATEGORY_TERMS = ["esporte", "esportes"]
 const MOVIES_SERIES_CATEGORY_TERMS = ["filmes e series", "filmes series", "filmes", "series"]
+const SYNTHETIC_CATEGORY_TERMS = ["cazetv", "caze tv", "goat", "ufc", "dazn"]
 const SYNEX_SPORTS_CATEGORY_ID = "__synex_esportes__"
 const SYNEX_HBO_MAX_CATEGORY_ID = "__synex_hbo_max__"
+const SYNEX_CAZETV_CATEGORY_ID = "__synex_cazetv__"
+const SYNEX_GOAT_CATEGORY_ID = "__synex_goat__"
+const SYNEX_UFC_CATEGORY_ID = "__synex_ufc__"
+const SYNEX_DAZN_CATEGORY_ID = "__synex_dazn__"
+const SYNEX_GLOBO_CATEGORY_ID = "__synex_globo__"
 
 function normalizeFilterText(value: string) {
   return value
@@ -115,6 +121,10 @@ function isMoviesSeriesCategory(...values: string[]) {
   return matchesTerms(MOVIES_SERIES_CATEGORY_TERMS, ...values)
 }
 
+function isSyntheticRequestedCategory(...values: string[]) {
+  return matchesTerms(SYNTHETIC_CATEGORY_TERMS, ...values)
+}
+
 function getSportsMaxChannelNumber(...values: string[]) {
   const haystack = normalizeFilterText(values.join(" "))
   if (!/\bmax\b/.test(haystack)) return null
@@ -127,6 +137,38 @@ function getSportsMaxChannelNumber(...values: string[]) {
 
 function formatHboMaxChannelName(channelNumber: string) {
   return `HBO Max ${channelNumber}`
+}
+
+function getNumberedChannelMatch(name: string, pattern: RegExp, maxNumber: number) {
+  const haystack = normalizeFilterText(name)
+  const match = haystack.match(pattern)
+  if (!match) return null
+
+  const channelNumber = Number(match[1])
+  if (!Number.isInteger(channelNumber) || channelNumber < 1 || channelNumber > maxNumber) return null
+
+  return String(channelNumber).padStart(2, "0")
+}
+
+function getRequestedChannelMapping(name: string, globoCategoryId: string) {
+  const normalizedName = normalizeFilterText(name)
+  const cazeTvNumber = getNumberedChannelMatch(name, /\bcaze\s*tv\b\D*0?([1-3])\b/, 3)
+  const goatNumber = getNumberedChannelMatch(name, /\bgoat\b\D*0?([1-3])\b/, 3)
+  const daznNumber = getNumberedChannelMatch(name, /\bdazn\b\D*0?([1-3])\b/, 3)
+  const geVariant = normalizedName.match(/\bge\s*(tv|fast)\b.*\b(fhd|hd|sd)\b/)
+
+  if (cazeTvNumber) return { categoryId: SYNEX_CAZETV_CATEGORY_ID, categoryName: "CazeTV", channelName: `CazeTV ${cazeTvNumber}` }
+  if (goatNumber) return { categoryId: SYNEX_GOAT_CATEGORY_ID, categoryName: "GOAT", channelName: `Goat ${goatNumber}` }
+  if (daznNumber) return { categoryId: SYNEX_DAZN_CATEGORY_ID, categoryName: "Dazn", channelName: `DAZN ${Number(daznNumber)}` }
+  if (/\bufc\b.*\bfhd\b/.test(normalizedName)) return { categoryId: SYNEX_UFC_CATEGORY_ID, categoryName: "UFC", channelName: "UFC FHD" }
+  if (/\bufc\b.*\bhd\b/.test(normalizedName)) return { categoryId: SYNEX_UFC_CATEGORY_ID, categoryName: "UFC", channelName: "UFC HD" }
+  if (/\bufc\b.*\bsd\b/.test(normalizedName)) return { categoryId: SYNEX_UFC_CATEGORY_ID, categoryName: "UFC", channelName: "UFC SD" }
+  if (geVariant) {
+    const serviceName = geVariant[1] === "fast" ? "GE Fast" : "GE TV"
+    return { categoryId: globoCategoryId, categoryName: "Globo", channelName: `${serviceName} ${geVariant[2].toUpperCase()}` }
+  }
+
+  return null
 }
 
 function shouldUseBlackLogo(...values: string[]) {
@@ -362,6 +404,8 @@ export default function DashboardPage() {
         const sportsCategoryId = sportsCategory?.category_id ?? SYNEX_SPORTS_CATEGORY_ID
         const hboMaxCategory = serverCategories.find((cat) => matchesTerms(["hbo", "hbo max"], cat.category_name))
         const hboMaxCategoryId = hboMaxCategory?.category_id ?? SYNEX_HBO_MAX_CATEGORY_ID
+        const globoCategory = serverCategories.find((cat) => matchesTerms(["globo"], cat.category_name))
+        const globoCategoryId = globoCategory?.category_id ?? SYNEX_GLOBO_CATEGORY_ID
         const ppvCategoryIds = new Set(
           serverCategories
             .filter((cat) => isPpvCategory(cat.category_name))
@@ -372,6 +416,7 @@ export default function DashboardPage() {
         for (const category of serverCategories) {
           if (isMoviesSeriesCategory(category.category_name)) continue
           if (isPpvCategory(category.category_name)) continue
+          if (isSyntheticRequestedCategory(category.category_name)) continue
 
           if (matchesChannelFilter(category.category_name)) {
             allowedCategoryIds.add(category.category_id)
@@ -385,12 +430,15 @@ export default function DashboardPage() {
           const isPpvChannel = ppvCategoryIds.has(channel.category_id) || isPpvCategory(channel.name, categoryName)
           const sportsMaxChannelNumber = getSportsMaxChannelNumber(channel.name)
           const isSportsMaxChannel = Boolean(sportsMaxChannelNumber)
-          const normalizedChannel = isSportsMaxChannel
+          const requestedChannelMapping = getRequestedChannelMapping(channel.name, globoCategoryId)
+          const normalizedChannel = requestedChannelMapping
+            ? { ...channel, category_id: requestedChannelMapping.categoryId, name: requestedChannelMapping.channelName }
+            : isSportsMaxChannel
             ? { ...channel, category_id: hboMaxCategoryId, name: formatHboMaxChannelName(sportsMaxChannelNumber as string) }
             : isPpvChannel
               ? { ...channel, category_id: sportsCategoryId }
               : channel
-          const normalizedCategoryName = isSportsMaxChannel ? "HBO Max" : isPpvChannel ? "Esportes" : categoryName
+          const normalizedCategoryName = requestedChannelMapping?.categoryName ?? (isSportsMaxChannel ? "HBO Max" : isPpvChannel ? "Esportes" : categoryName)
           const isAllowed = matchesChannelFilter(normalizedChannel.name, normalizedCategoryName)
 
           if (isAllowed) {
@@ -403,6 +451,7 @@ export default function DashboardPage() {
         const filteredCategories = serverCategories.filter((cat) => {
           if (isMoviesSeriesCategory(cat.category_name)) return false
           if (isPpvCategory(cat.category_name)) return false
+          if (isSyntheticRequestedCategory(cat.category_name)) return false
           return allowedCategoryIds.has(cat.category_id)
         })
 
@@ -420,6 +469,27 @@ export default function DashboardPage() {
             category_name: "HBO Max",
             parent_id: 0,
           })
+        }
+
+        if (!globoCategory && allowedCategoryIds.has(SYNEX_GLOBO_CATEGORY_ID)) {
+          filteredCategories.push({
+            category_id: SYNEX_GLOBO_CATEGORY_ID,
+            category_name: "Globo",
+            parent_id: 0,
+          })
+        }
+
+        const syntheticCategories: Category[] = [
+          { category_id: SYNEX_CAZETV_CATEGORY_ID, category_name: "CazeTV", parent_id: 0 },
+          { category_id: SYNEX_GOAT_CATEGORY_ID, category_name: "GOAT", parent_id: 0 },
+          { category_id: SYNEX_UFC_CATEGORY_ID, category_name: "UFC", parent_id: 0 },
+          { category_id: SYNEX_DAZN_CATEGORY_ID, category_name: "Dazn", parent_id: 0 },
+        ]
+
+        for (const category of syntheticCategories) {
+          if (allowedCategoryIds.has(category.category_id)) {
+            filteredCategories.push(category)
+          }
         }
 
         if (filteredCategories.length === 0 || filteredServerChannels.length === 0) return null
@@ -1025,6 +1095,10 @@ export default function DashboardPage() {
       .trim()
       .toLowerCase()
     if (formatted.includes("sbt")) return "SBT"
+    if (formatted.includes("cazetv") || formatted.includes("caze tv")) return "CazeTV"
+    if (formatted.includes("goat")) return "GOAT"
+    if (formatted.includes("ufc")) return "UFC"
+    if (formatted.includes("dazn")) return "Dazn"
     if (formatted.includes("amazon")) return "Amazon Prime"
     if (formatted.includes("hbo")) return "HBO Max"
     if (formatted.includes("espn")) return "ESPN"
