@@ -182,19 +182,17 @@ export default function AdminPage() {
             </button>
           </nav>
 
-          <div className="border-t border-border/70 p-4">
-            <Button variant="outline" className="h-10 w-full justify-start gap-2 rounded-lg" onClick={logout}>
-              <LogOut className="h-4 w-4" />
-              Sair
-            </Button>
-          </div>
         </aside>
 
         <section className="min-w-0 flex-1">
           <header className="sticky top-0 z-20 border-b border-border/70 bg-background/90 px-4 backdrop-blur lg:px-8">
             <div className="flex h-[73px] items-center justify-end">
               <div className="flex items-center gap-2">
-                <Button className="h-10 gap-2 rounded-lg bg-foreground text-background hover:bg-foreground/90" onClick={logout}>
+                <Button
+                  variant="outline"
+                  className="h-12 gap-2 rounded-lg px-8 text-base shadow-lg transition-all hover:scale-[1.02] hover:shadow-xl"
+                  onClick={logout}
+                >
                   <LogOut className="h-4 w-4" />
                   Sair
                 </Button>
