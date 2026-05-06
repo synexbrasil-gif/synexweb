@@ -78,6 +78,20 @@ type AccountInfo = {
   }
 }
 
+const CHANNEL_FILTER_TERMS = ["ppv", "pay per view", "pay-per-view", "disney", "paramount", "nba"]
+
+function normalizeFilterText(value: string) {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+}
+
+function matchesChannelFilter(...values: string[]) {
+  const haystack = normalizeFilterText(values.join(" "))
+  return CHANNEL_FILTER_TERMS.some((term) => haystack.includes(term))
+}
+
 declare global {
   interface Window {
     __onGCastApiAvailable?: (isAvailable: boolean) => void
@@ -271,9 +285,6 @@ export default function DashboardPage() {
       setSelectedCategory(null)
       setSelectedChannel(null)
 
-      const allowed = [
-        "premiere", "espn", "amazon", "hbo", "globo", "sbt", "esportes", "sportv"
-      ]
       const loadServerData = async (server: string) => {
         const startedAt = performance.now()
         const response = await fetchWithTimeout(buildApiUrl(server, username, password, "get_live_categories"), 10000)
@@ -283,11 +294,7 @@ export default function DashboardPage() {
         const data = await response.json()
         if (!Array.isArray(data) || data.length === 0) return null
 
-        const filteredCategories = data.filter((cat: Category) =>
-          allowed.some(word => cat.category_name.toLowerCase().includes(word))
-        )
-
-        if (filteredCategories.length === 0) return null
+        const serverCategories = data as Category[]
 
         const [accountResult, channelsResult] = await Promise.allSettled([
           fetchWithTimeout(buildAccountApiUrl(server, username, password), 10000),
@@ -308,11 +315,35 @@ export default function DashboardPage() {
           serverChannels = Array.isArray(channelsData) ? channelsData : []
         }
 
+        const categoryById = new Map(serverCategories.map((cat) => [cat.category_id, cat.category_name]))
+        const allowedCategoryIds = new Set<string>()
+
+        for (const category of serverCategories) {
+          if (matchesChannelFilter(category.category_name)) {
+            allowedCategoryIds.add(category.category_id)
+          }
+        }
+
+        const filteredServerChannels = serverChannels.filter((channel) => {
+          const categoryName = categoryById.get(channel.category_id) ?? ""
+          const isAllowed = matchesChannelFilter(channel.name, categoryName)
+
+          if (isAllowed) {
+            allowedCategoryIds.add(channel.category_id)
+          }
+
+          return isAllowed
+        })
+
+        const filteredCategories = serverCategories.filter((cat) => allowedCategoryIds.has(cat.category_id))
+
+        if (filteredCategories.length === 0 || filteredServerChannels.length === 0) return null
+
         return {
           server,
           accountInfo: serverAccountInfo,
           categories: filteredCategories,
-          channels: serverChannels,
+          channels: filteredServerChannels,
           latencyMs: performance.now() - startedAt,
         }
       }
