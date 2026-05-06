@@ -78,7 +78,7 @@ type AccountInfo = {
   }
 }
 
-const CHANNEL_FILTER_TERMS = ["ppv", "pay per view", "pay-per-view", "disney", "paramount", "nba"]
+const CHANNEL_FILTER_TERMS = ["ppv", "pay per view", "pay-per-view", "disney", "paramount", "nba", "premiere", "amazon", "espn", "hbo", "esportes"]
 
 function normalizeFilterText(value: string) {
   return value
