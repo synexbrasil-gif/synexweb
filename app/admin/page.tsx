@@ -483,7 +483,7 @@ export default function AdminPage() {
             </section>
             </>
             ) : (
-            <section className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_22rem]">
+            <section>
               <form onSubmit={saveMercadoPago} className="rounded-lg border border-border/70 bg-[linear-gradient(135deg,oklch(0.99_0_0)_0%,oklch(0.97_0_0)_50%,oklch(0.94_0_0)_100%)] p-5 shadow-sm">
                 <div className="flex items-center gap-2">
                   <Plug className="h-4 w-4 text-muted-foreground" />
@@ -510,20 +510,6 @@ export default function AdminPage() {
                   {isSavingIntegration ? "Salvando..." : "Salvar integração"}
                 </Button>
               </form>
-
-              <aside className="rounded-lg border border-border/70 bg-[linear-gradient(135deg,oklch(0.99_0_0)_0%,oklch(0.96_0_0)_58%,oklch(0.93_0_0)_100%)] p-5 shadow-sm">
-                <p className="text-xs font-medium text-muted-foreground">Status</p>
-                <p className="mt-2 text-2xl font-semibold text-foreground">
-                  {hasMercadoPagoIntegration ? "Conectado" : "Pendente"}
-                </p>
-                <div className="mt-5 space-y-3 text-sm text-muted-foreground">
-                  <div className="rounded-xl bg-background/55 p-3">Pix gerado no backend</div>
-                  <div className="rounded-xl bg-background/55 p-3">Access Token salvo no MySQL</div>
-                  <div className="rounded-xl bg-background/55 p-3">
-                    {mercadoPagoUpdatedAt ? `Atualizado em ${new Date(mercadoPagoUpdatedAt).toLocaleString("pt-BR")}` : "Nenhuma atualização registrada"}
-                  </div>
-                </div>
-              </aside>
             </section>
             )}
           </div>
