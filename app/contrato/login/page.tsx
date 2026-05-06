@@ -36,7 +36,10 @@ export default function ContratoLoginPage() {
       }
 
       const nextPath = new URLSearchParams(window.location.search).get("next")
-      window.location.href = nextPath?.startsWith("/contrato") ? nextPath : "/contrato"
+      const allowedNextPath =
+        nextPath?.startsWith("/admin") || nextPath?.startsWith("/contrato") || nextPath?.startsWith("/contratos")
+
+      window.location.href = allowedNextPath && nextPath ? nextPath : "/admin"
     } catch {
       setError("Nao foi possivel entrar. Tente novamente.")
     } finally {
@@ -55,8 +58,8 @@ export default function ContratoLoginPage() {
         style={{ animation: "synex-fade-in-up 420ms ease-out both" }}
       >
         <CardHeader className="pb-2 text-center">
-          <CardTitle className="text-2xl font-bold text-foreground">Acessar Contratos</CardTitle>
-          <p className="mt-2 text-sm text-muted-foreground">Adicione suas informações.</p>
+          <CardTitle className="text-2xl font-bold text-foreground">Acessar Admin</CardTitle>
+          <p className="mt-2 text-sm text-muted-foreground">Entre para gerenciar a Synex.</p>
         </CardHeader>
         <CardContent className="pt-6">
           <form onSubmit={handleSubmit}>
