@@ -80,7 +80,7 @@ type AccountInfo = {
 
 const CHANNEL_FILTER_TERMS = ["ppv", "pay per view", "pay-per-view", "disney", "paramount", "nba", "premiere", "amazon", "espn", "hbo", "cazetv", "caze tv", "goat", "ufc", "dazn", "ge tv", "ge fast", "globo"]
 const BLACK_LOGO_TERMS = ["ppv", "pay per view", "pay-per-view", "disney", "paramount", "nba", "esporte", "esportes", "goat", "ufc", "dazn"]
-const LARGE_LOGO_TERMS = ["disney", "paramount"]
+const LARGE_LOGO_TERMS = ["disney", "paramount", "cazetv", "caze tv", "ufc"]
 const PPV_CATEGORY_TERMS = ["ppv", "pay per view", "pay-per-view"]
 const SPORTS_CATEGORY_TERMS = ["esporte", "esportes"]
 const MOVIES_SERIES_CATEGORY_TERMS = ["filmes e series", "filmes series", "filmes", "series"]
