@@ -37,10 +37,13 @@ export default function AdminPage() {
   const [showPasswords, setShowPasswords] = useState(false)
   const [searchQuery, setSearchQuery] = useState("")
   const [isSaving, setIsSaving] = useState(false)
+  const [isLoadingContracts, setIsLoadingContracts] = useState(true)
   const [error, setError] = useState("")
 
   useEffect(() => {
     const loadContracts = async () => {
+      setIsLoadingContracts(true)
+
       try {
         const response = await fetch("/api/contratos", { cache: "no-store" })
         if (response.status === 401) {
@@ -60,6 +63,8 @@ export default function AdminPage() {
         }
       } catch {
         setError("Nao foi possivel carregar os contratos.")
+      } finally {
+        setIsLoadingContracts(false)
       }
     }
 
@@ -242,7 +247,9 @@ export default function AdminPage() {
                 <div className="flex flex-col gap-3 border-b border-border/70 p-4 lg:flex-row lg:items-center lg:justify-between">
                   <div>
                     <h2 className="text-base font-semibold text-foreground">Contratos</h2>
-                    <p className="mt-1 text-xs text-muted-foreground">Gerencie os acessos cadastrados.</p>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {isLoadingContracts ? "Carregando contratos..." : "Gerencie os acessos cadastrados."}
+                    </p>
                   </div>
 
                   <div className="flex gap-2">
@@ -281,8 +288,31 @@ export default function AdminPage() {
                         <th className="sticky right-0 w-24 bg-muted px-3 py-3 text-right font-semibold">Ações</th>
                       </tr>
                     </thead>
-                    <tbody>
-                      {filteredContracts.map((contract) => (
+                    <tbody className={cn(isLoadingContracts && "animate-pulse")}>
+                      {isLoadingContracts ? (
+                        Array.from({ length: 5 }).map((_, index) => (
+                          <tr key={`loading-contract-${index}`} className="border-b border-border/50 last:border-0">
+                            <td className="px-4 py-4">
+                              <div className="h-4 w-44 rounded-full bg-muted" />
+                            </td>
+                            <td className="px-4 py-4">
+                              <div className="h-4 w-28 rounded-full bg-muted" />
+                            </td>
+                            <td className="px-4 py-4">
+                              <div className="h-4 w-24 rounded-full bg-muted" />
+                            </td>
+                            <td className="px-4 py-4">
+                              <div className="h-4 w-20 rounded-full bg-muted" />
+                            </td>
+                            <td className="px-4 py-4">
+                              <div className="h-6 w-24 rounded-full bg-muted" />
+                            </td>
+                            <td className="sticky right-0 bg-background px-3 py-4">
+                              <div className="ml-auto h-9 w-9 rounded-lg bg-muted" />
+                            </td>
+                          </tr>
+                        ))
+                      ) : filteredContracts.map((contract) => (
                         <tr key={contract.id} className="border-b border-border/50 last:border-0">
                           <td className="whitespace-nowrap px-4 py-3 font-medium text-foreground">{contract.fullName}</td>
                           <td className="px-4 py-3 text-muted-foreground">{contract.username}</td>
@@ -310,7 +340,7 @@ export default function AdminPage() {
                     </tbody>
                   </table>
 
-                  {filteredContracts.length === 0 && (
+                  {!isLoadingContracts && filteredContracts.length === 0 && (
                     <div className="flex min-h-60 items-center justify-center p-8 text-center">
                       <div>
                         <p className="font-semibold text-foreground">Nenhum contrato encontrado</p>
