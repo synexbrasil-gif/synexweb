@@ -117,7 +117,7 @@ function isMoviesSeriesCategory(...values: string[]) {
 
 function getSportsMaxChannelNumber(...values: string[]) {
   const haystack = normalizeFilterText(values.join(" "))
-  const match = haystack.match(/\bmax\s*0?([1-7])\b/)
+  const match = haystack.match(/\bmax\b(?:\D{0,12})\b0?([1-7])\b/)
   if (!match) return null
   return match[1].padStart(2, "0")
 }
