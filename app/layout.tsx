@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import { Geist, Geist_Mono } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/next'
 import { RestorePageScroll } from '@/components/restore-page-scroll'
+import { NotificationProvider } from '@/components/notification-provider'
 import './globals.css'
 
 const _geist = Geist({ subsets: ["latin"] });
@@ -21,8 +22,10 @@ export default function RootLayout({
   return (
     <html lang="pt-BR">
       <body className="font-sans antialiased">
-        <RestorePageScroll />
-        {children}
+        <NotificationProvider>
+          <RestorePageScroll />
+          {children}
+        </NotificationProvider>
         {process.env.NODE_ENV === 'production' && <Analytics />}
       </body>
     </html>

@@ -4,12 +4,14 @@ import { FormEvent, useState } from "react"
 import { Eye, EyeOff } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
+import { useNotification } from "@/components/notification-provider"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
 import { Spinner } from "@/components/ui/spinner"
 
 export default function ContratoLoginPage() {
+  const { notify } = useNotification()
   const [username, setUsername] = useState("")
   const [password, setPassword] = useState("")
   const [showPassword, setShowPassword] = useState(false)
@@ -31,7 +33,9 @@ export default function ContratoLoginPage() {
       })
 
       if (!response.ok) {
-        setError("Usuario ou senha invalidos.")
+        const message = "Usuário ou senha inválidos."
+        setError(message)
+        notify({ title: "Acesso negado", description: message, tone: "error" })
         return
       }
 
@@ -41,7 +45,9 @@ export default function ContratoLoginPage() {
 
       window.location.href = allowedNextPath && nextPath ? nextPath : "/admin"
     } catch {
-      setError("Nao foi possivel entrar. Tente novamente.")
+      const message = "Não foi possível entrar. Tente novamente."
+      setError(message)
+      notify({ title: "Erro no login", description: message, tone: "error" })
     } finally {
       setIsLoading(false)
     }

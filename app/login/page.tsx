@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { FieldGroup, Field, FieldLabel } from "@/components/ui/field"
+import { useNotification } from "@/components/notification-provider"
 import { Spinner } from "@/components/ui/spinner"
 import { Eye, EyeOff } from "lucide-react"
 import { LOGIN_RETURN_FLAG } from "@/components/clear-login-return-flag"
@@ -14,6 +15,7 @@ import { LOGIN_RETURN_FLAG } from "@/components/clear-login-return-flag"
 
 export default function LoginPage() {
   const router = useRouter()
+  const { notify } = useNotification()
   const [username, setUsername] = useState("")
   const [password, setPassword] = useState("")
   const [showPassword, setShowPassword] = useState(false)
@@ -34,7 +36,9 @@ export default function LoginPage() {
       sessionStorage.setItem("iptv_password", password)
       router.replace("/dashboard")
     } else {
-      setError("Por favor, preencha todos os campos.")
+      const message = "Por favor, preencha todos os campos."
+      setError(message)
+      notify({ title: "Dados incompletos", description: message, tone: "error" })
       setIsLoading(false)
     }
   }

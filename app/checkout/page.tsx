@@ -4,6 +4,7 @@ import { FormEvent, useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 
 import { Button } from "@/components/ui/button"
+import { useNotification } from "@/components/notification-provider"
 import { Input } from "@/components/ui/input"
 import { cn } from "@/lib/utils"
 
@@ -30,13 +31,13 @@ const plans = [
 
 export default function CheckoutPage() {
   const router = useRouter()
+  const { notify } = useNotification()
   const [selectedPlan, setSelectedPlan] = useState(plans[0].id)
   const [fullName, setFullName] = useState("")
   const [phone, setPhone] = useState("")
   const [submitted, setSubmitted] = useState(false)
   const [isGeneratingPix, setIsGeneratingPix] = useState(false)
   const [pixError, setPixError] = useState("")
-  const [copyMessage, setCopyMessage] = useState("")
   const [pixPayment, setPixPayment] = useState<{
     id?: number
     status?: string
@@ -92,17 +93,19 @@ export default function CheckoutPage() {
     if (!pixPayment?.qrCode) return
 
     await navigator.clipboard.writeText(pixPayment.qrCode)
-    setCopyMessage("Código copiado.")
+    notify({ title: "Código copiado", description: "O código Pix foi copiado.", tone: "success" })
   }
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     setSubmitted(true)
     setPixError("")
-    setCopyMessage("")
     setPixPayment(null)
 
-    if (!canSubmit) return
+    if (!canSubmit) {
+      notify({ title: "Dados incompletos", description: "Preencha seu nome completo e telefone.", tone: "error" })
+      return
+    }
 
     setIsGeneratingPix(true)
 
@@ -122,13 +125,17 @@ export default function CheckoutPage() {
       const data = await response.json()
 
       if (!response.ok) {
-        setPixError(data?.error ?? "Não foi possível gerar o Pix.")
+        const message = data?.error ?? "Não foi possível gerar o Pix."
+        setPixError(message)
+        notify({ title: "Pix não gerado", description: message, tone: "error" })
         return
       }
 
       setPixPayment(data)
+      notify({ title: "Pix gerado", description: "Use o QR Code ou copie o código para pagar.", tone: "success" })
     } catch {
       setPixError("Não foi possível gerar o Pix.")
+      notify({ title: "Pix não gerado", description: "Tente novamente em alguns instantes.", tone: "error" })
     } finally {
       setIsGeneratingPix(false)
     }
@@ -256,7 +263,6 @@ export default function CheckoutPage() {
                   <Button type="button" className="h-11 w-full rounded-xl bg-foreground text-background hover:bg-foreground/90" onClick={copyPixCode}>
                     Copiar código
                   </Button>
-                  {copyMessage && <p className="text-center text-xs font-medium text-muted-foreground">{copyMessage}</p>}
                 </div>
               )}
             </div>
