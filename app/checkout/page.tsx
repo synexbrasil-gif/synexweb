@@ -1,6 +1,6 @@
 "use client"
 
-import { FormEvent, useEffect, useMemo, useState } from "react"
+import { FormEvent, useEffect, useState } from "react"
 import type { ReactNode } from "react"
 import { useRouter } from "next/navigation"
 import { Smartphone, UserRound } from "lucide-react"
@@ -56,10 +56,6 @@ export default function CheckoutPage() {
       setSelectedPlan(matchedPlan.id)
     }
   }, [])
-
-  const plan = useMemo(() => {
-    return plans.find((item) => item.id === selectedPlan) ?? plans[0]
-  }, [selectedPlan])
 
   const canSubmit = fullName.trim().length > 2 && phone.replace(/\D/g, "").length >= 10
 
@@ -148,7 +144,7 @@ export default function CheckoutPage() {
       <div className="gradient-glow gradient-glow-3" style={{ bottom: "-280px", left: "20%" }} />
 
       <section className="relative z-10 flex min-h-screen items-center justify-center px-4 py-10">
-        <div className="grid w-full max-w-5xl items-start gap-5 lg:grid-cols-[1fr_24rem]">
+        <div className="w-full max-w-3xl">
           <form
             onSubmit={handleSubmit}
             className="rounded-2xl border border-border/70 bg-[linear-gradient(135deg,oklch(0.99_0_0)_0%,oklch(0.97_0_0)_50%,oklch(0.93_0_0)_100%)] p-5 shadow-xl shadow-foreground/5 sm:p-7"
@@ -236,7 +232,7 @@ export default function CheckoutPage() {
                   </div>
 
                   {pixPayment.qrCodeBase64 && (
-                    <div className="rounded-2xl border border-border/70 bg-[linear-gradient(135deg,oklch(1_0_0)_0%,oklch(0.97_0_0)_100%)] p-4 shadow-inner">
+                    <div className="rounded-2xl bg-[linear-gradient(135deg,oklch(1_0_0)_0%,oklch(0.97_0_0)_100%)] p-4 shadow-inner">
                       <div className="mx-auto flex h-56 w-56 items-center justify-center rounded-2xl bg-white p-4 shadow-lg shadow-foreground/10">
                         <img
                           src={`data:image/png;base64,${pixPayment.qrCodeBase64}`}
@@ -271,28 +267,6 @@ export default function CheckoutPage() {
             </div>
           </form>
 
-          <aside
-            className="self-start rounded-2xl border border-border/70 bg-[linear-gradient(135deg,oklch(0.99_0_0)_0%,oklch(0.96_0_0)_54%,oklch(0.92_0_0)_100%)] p-5 shadow-xl shadow-foreground/5 sm:p-6"
-            style={{ animation: "synex-fade-in-left 460ms ease-out both" }}
-          >
-            <div className="border-b border-border/70 pb-5">
-              <p className="text-xs font-semibold uppercase text-muted-foreground">Resumo</p>
-              <h2 className="mt-2 text-2xl font-bold text-foreground">{plan.name}</h2>
-              <p className="mt-1 text-sm text-muted-foreground">{plan.description}</p>
-              <p className="mt-5 text-4xl font-bold text-foreground">
-                <span className="text-base font-medium text-muted-foreground">R$ </span>
-                {plan.price}
-              </p>
-            </div>
-
-            <div className="mt-5 space-y-3">
-              {["Pagamento via Pix", "Acesso liberado após confirmação", "Dados protegidos na contratação"].map((item) => (
-                <div key={item} className="flex items-center gap-3 rounded-xl bg-background/55 p-3">
-                  <span className="text-sm text-muted-foreground">{item}</span>
-                </div>
-              ))}
-            </div>
-          </aside>
         </div>
       </section>
     </main>
