@@ -6,6 +6,7 @@ import {
   Eye,
   EyeOff,
   FileText,
+  Pencil,
   Plug,
   Search,
   Trash2,
@@ -43,6 +44,7 @@ export default function AdminPage() {
   const [password, setPassword] = useState("")
   const [activationDate, setActivationDate] = useState("")
   const [plan, setPlan] = useState("")
+  const [editingContractId, setEditingContractId] = useState<string | null>(null)
   const [showPasswords, setShowPasswords] = useState(false)
   const [searchQuery, setSearchQuery] = useState("")
   const [isSaving, setIsSaving] = useState(false)
@@ -135,6 +137,25 @@ export default function AdminPage() {
   const latestContract = contracts[0]
   const hasMercadoPagoIntegration = Boolean(mercadoPagoAccessToken.trim())
 
+  const resetContractForm = () => {
+    setFullName("")
+    setUsername("")
+    setPassword("")
+    setActivationDate("")
+    setPlan("")
+    setEditingContractId(null)
+  }
+
+  const startEditContract = (contract: Contract) => {
+    setError("")
+    setFullName(contract.fullName)
+    setUsername(contract.username)
+    setPassword(contract.password)
+    setActivationDate(contract.activationDate)
+    setPlan(contract.plan)
+    setEditingContractId(contract.id)
+  }
+
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     setError("")
@@ -151,11 +172,12 @@ export default function AdminPage() {
 
     try {
       const response = await fetch("/api/contratos", {
-        method: "POST",
+        method: editingContractId ? "PATCH" : "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
+          id: editingContractId,
           fullName: cleanFullName,
           username: cleanUsername,
           password: cleanPassword,
@@ -176,7 +198,11 @@ export default function AdminPage() {
       }
 
       const data = await response.json()
-      setContracts((currentContracts) => [data.contract, ...currentContracts])
+      setContracts((currentContracts) =>
+        editingContractId
+          ? currentContracts.map((contract) => (contract.id === editingContractId ? data.contract : contract))
+          : [data.contract, ...currentContracts],
+      )
     } catch {
       setError("Nao foi possivel salvar o contrato.")
       return
@@ -184,11 +210,7 @@ export default function AdminPage() {
       setIsSaving(false)
     }
 
-    setFullName("")
-    setUsername("")
-    setPassword("")
-    setActivationDate("")
-    setPlan("")
+    resetContractForm()
   }
 
   const deleteContract = async (contractId: string) => {
@@ -210,6 +232,9 @@ export default function AdminPage() {
       }
 
       setContracts((currentContracts) => currentContracts.filter((contract) => contract.id !== contractId))
+      if (editingContractId === contractId) {
+        resetContractForm()
+      }
     } catch {
       setError("Nao foi possivel remover o contrato.")
     }
@@ -333,7 +358,7 @@ export default function AdminPage() {
             <div className="h-[73px]" />
           </header>
 
-          <div className="space-y-6 p-4 lg:p-8" style={{ animation: "synex-fade-in-up 420ms ease-out both" }}>
+          <div key={activeSection} className="space-y-6 p-4 lg:p-8" style={{ animation: "synex-fade-in-up 420ms ease-out both" }}>
             {activeSection === "contracts" ? (
             <>
             <section className="grid gap-3 md:grid-cols-3">
@@ -355,7 +380,7 @@ export default function AdminPage() {
               <form id="novo-contrato" onSubmit={handleSubmit} className="rounded-lg border border-border/70 bg-[linear-gradient(135deg,oklch(0.99_0_0)_0%,oklch(0.97_0_0)_50%,oklch(0.94_0_0)_100%)] p-4 shadow-sm">
                 <div className="flex items-center gap-2">
                   <UserRound className="h-4 w-4 text-muted-foreground" />
-                  <h2 className="text-base font-semibold text-foreground">Novo contrato</h2>
+                  <h2 className="text-base font-semibold text-foreground">{editingContractId ? "Editar contrato" : "Novo contrato"}</h2>
                 </div>
 
                 <div className="mt-5 space-y-4">
@@ -368,8 +393,13 @@ export default function AdminPage() {
                   {error && <p className="text-sm font-medium text-destructive">{error}</p>}
 
                   <Button type="submit" className="h-11 w-full rounded-lg bg-foreground text-background hover:bg-foreground/90" disabled={isSaving}>
-                    {isSaving ? "Salvando..." : "Salvar contrato"}
+                    {isSaving ? "Salvando..." : editingContractId ? "Salvar alterações" : "Salvar contrato"}
                   </Button>
+                  {editingContractId && (
+                    <Button type="button" variant="outline" className="h-11 w-full rounded-lg bg-background/70" onClick={resetContractForm}>
+                      Cancelar edição
+                    </Button>
+                  )}
                 </div>
               </form>
 
@@ -415,7 +445,7 @@ export default function AdminPage() {
                         <th className="px-4 py-3 font-semibold">Senha</th>
                         <th className="px-4 py-3 font-semibold">Ativação</th>
                         <th className="px-4 py-3 font-semibold">Plano</th>
-                        <th className="sticky right-0 w-24 bg-muted px-3 py-3 text-right font-semibold">Ações</th>
+                        <th className="sticky right-0 w-28 bg-muted px-3 py-3 text-right font-semibold">Ações</th>
                       </tr>
                     </thead>
                     <tbody className={cn(isLoadingContracts && "animate-pulse")}>
@@ -454,6 +484,16 @@ export default function AdminPage() {
                             </span>
                           </td>
                           <td className="sticky right-0 bg-[oklch(0.97_0_0)] px-3 py-3 text-right">
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              className="mr-2 h-9 w-9 rounded-lg bg-background text-foreground hover:bg-foreground/10"
+                              onClick={() => startEditContract(contract)}
+                              aria-label="Editar contrato"
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </Button>
                             <Button
                               type="button"
                               variant="ghost"

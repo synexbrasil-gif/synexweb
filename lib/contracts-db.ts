@@ -234,6 +234,31 @@ export async function deleteContract(contractId: string) {
   return listContracts()
 }
 
+export async function updateContract(contractId: string, input: ContractInput) {
+  await ensureSchema()
+
+  await getPool().execute(
+    `
+      UPDATE contracts
+      SET full_name = ?, username = ?, password = ?, activation_date = ?, plan = ?
+      WHERE id = ?
+    `,
+    [input.fullName, input.username, input.password, input.activationDate, input.plan, contractId],
+  )
+
+  const [rows] = await getPool().execute<ContractRow[]>(
+    `
+      SELECT id, full_name, username, password, activation_date, plan, payment_id, created_at
+      FROM contracts
+      WHERE id = ?
+      LIMIT 1
+    `,
+    [contractId],
+  )
+
+  return rows[0] ? mapContract(rows[0]) : null
+}
+
 export async function findSubscriberByCredentials(username: string, password: string) {
   await ensureSchema()
 

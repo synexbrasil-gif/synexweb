@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server"
 
-import { createContract, deleteContract, listContracts, type Contract } from "@/lib/contracts-db"
+import { createContract, deleteContract, listContracts, updateContract, type Contract } from "@/lib/contracts-db"
 
 type ContractInput = Omit<Contract, "id" | "createdAt">
 
@@ -42,6 +42,43 @@ export async function POST(request: Request) {
       activationDate,
       plan,
     })
+
+    return NextResponse.json({ contract })
+  } catch (error) {
+    return NextResponse.json({ error: getDatabaseErrorMessage(error) }, { status: 500 })
+  }
+}
+
+export async function PATCH(request: Request) {
+  const contractInput = (await request.json()) as Partial<ContractInput> & { id?: string }
+
+  const id = contractInput.id?.trim()
+  const fullName = contractInput.fullName?.trim()
+  const username = contractInput.username?.trim()
+  const password = contractInput.password?.trim()
+  const activationDate = contractInput.activationDate?.trim()
+  const plan = contractInput.plan?.trim()
+
+  if (!id) {
+    return NextResponse.json({ error: "Contrato nao informado." }, { status: 400 })
+  }
+
+  if (!fullName || !username || !password || !activationDate || !plan) {
+    return NextResponse.json({ error: "Preencha todos os campos." }, { status: 400 })
+  }
+
+  try {
+    const contract = await updateContract(id, {
+      fullName,
+      username,
+      password,
+      activationDate,
+      plan,
+    })
+
+    if (!contract) {
+      return NextResponse.json({ error: "Contrato nao encontrado." }, { status: 404 })
+    }
 
     return NextResponse.json({ contract })
   } catch (error) {
