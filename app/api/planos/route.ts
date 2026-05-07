@@ -18,6 +18,19 @@ function getDatabaseErrorMessage(error: unknown) {
   return "Nao foi possivel conectar ao banco de dados."
 }
 
+function parsePlanPrice(value: number | string | undefined) {
+  if (typeof value === "number") return value
+
+  const price = String(value ?? "").trim()
+  if (!price) return Number.NaN
+
+  if (price.includes(",")) {
+    return Number(price.replace(/\./g, "").replace(",", "."))
+  }
+
+  return Number(price)
+}
+
 export async function GET() {
   try {
     const plans = await listPlans()
@@ -43,7 +56,7 @@ export async function PATCH(request: Request) {
 
   const normalizedPlans = plans.map((plan) => ({
     id: plan.id?.trim() ?? "",
-    price: Number(String(plan.price ?? "").replace(/\./g, "").replace(",", ".")),
+    price: parsePlanPrice(plan.price),
   }))
 
   if (normalizedPlans.some((plan) => !plan.id || !Number.isFinite(plan.price) || plan.price < 0.01)) {

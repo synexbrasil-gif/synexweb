@@ -45,6 +45,17 @@ type Plan = {
   updatedAt: string | null
 }
 
+function parseCurrencyValue(value: string) {
+  const price = value.trim()
+  if (!price) return Number.NaN
+
+  if (price.includes(",")) {
+    return Number(price.replace(/\./g, "").replace(",", "."))
+  }
+
+  return Number(price)
+}
+
 export default function AdminPage() {
   const router = useRouter()
   const { notify } = useNotification()
@@ -344,7 +355,7 @@ export default function AdminPage() {
 
     const normalizedPlans = plans.map((plan) => ({
       id: plan.id,
-      price: Number((planPrices[plan.id] ?? "").replace(/\./g, "").replace(",", ".")),
+      price: parseCurrencyValue(planPrices[plan.id] ?? ""),
     }))
 
     if (normalizedPlans.some((plan) => !Number.isFinite(plan.price) || plan.price < 0.01)) {
