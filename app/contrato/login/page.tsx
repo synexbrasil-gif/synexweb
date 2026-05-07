@@ -34,7 +34,6 @@ export default function ContratoLoginPage() {
 
       if (!response.ok) {
         const message = "Usuário ou senha inválidos."
-        setError(message)
         notify({ title: "Acesso negado", description: message, tone: "error" })
         return
       }

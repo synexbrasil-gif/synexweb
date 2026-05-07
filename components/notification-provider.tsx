@@ -1,6 +1,7 @@
 "use client"
 
 import { createContext, useCallback, useContext, useMemo, useState } from "react"
+import { Bell } from "lucide-react"
 
 import { cn } from "@/lib/utils"
 
@@ -67,17 +68,18 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
           <div
             key={notification.id}
             className={cn(
-              "rounded-xl border bg-[linear-gradient(135deg,oklch(0.99_0_0)_0%,oklch(0.96_0_0)_100%)] p-4 shadow-2xl shadow-foreground/10",
-              "animate-notification-in",
-              notification.tone === "error" && "border-destructive/30",
-              notification.tone === "success" && "border-foreground/20",
-              notification.tone === "default" && "border-border/70",
+              "animate-notification-in flex gap-3 rounded-xl border border-border/70 bg-[linear-gradient(135deg,oklch(0.99_0_0)_0%,oklch(0.96_0_0)_100%)] p-4 shadow-2xl shadow-foreground/10",
             )}
           >
-            <p className="text-sm font-semibold text-foreground">{notification.title}</p>
-            {notification.description && (
-              <p className="mt-1 text-sm leading-5 text-muted-foreground">{notification.description}</p>
-            )}
+            <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-foreground text-background">
+              <Bell className="h-4 w-4" />
+            </span>
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-foreground">{notification.title}</p>
+              {notification.description && (
+                <p className="mt-1 text-sm leading-5 text-muted-foreground">{notification.description}</p>
+              )}
+            </div>
           </div>
         ))}
       </div>
