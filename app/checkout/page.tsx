@@ -1,9 +1,7 @@
 "use client"
 
 import { FormEvent, useEffect, useState } from "react"
-import type { ReactNode } from "react"
 import { useRouter } from "next/navigation"
-import { Smartphone, UserRound } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -13,7 +11,7 @@ const plans = [
   {
     id: "mensal",
     name: "Mensal",
-    price: "0,01",
+    price: "29,90",
     description: "Ideal para experimentar",
   },
   {
@@ -152,7 +150,7 @@ export default function CheckoutPage() {
           >
             <div className="flex items-start justify-between gap-4 border-b border-border/70 pb-5">
               <div>
-                <p className="text-xs font-semibold uppercase text-muted-foreground">Checkout Pix</p>
+                <p className="text-xs font-semibold uppercase text-muted-foreground">Checkout</p>
                 <h1 className="mt-2 text-3xl font-bold tracking-tight text-foreground">Finalizar contratação</h1>
                 <p className="mt-2 max-w-xl text-sm text-muted-foreground">
                   Preencha seus dados para preparar o pagamento via Pix.
@@ -195,7 +193,6 @@ export default function CheckoutPage() {
 
               <div className="grid gap-4 sm:grid-cols-2">
                 <CheckoutField
-                  icon={<UserRound className="h-4 w-4" />}
                   label="Nome completo"
                   value={fullName}
                   onChange={setFullName}
@@ -203,7 +200,6 @@ export default function CheckoutPage() {
                   error={submitted && fullName.trim().length <= 2 ? "Informe seu nome completo." : ""}
                 />
                 <CheckoutField
-                  icon={<Smartphone className="h-4 w-4" />}
                   label="Numero de telefone"
                   value={phone}
                   onChange={(value) => setPhone(formatPhone(value))}
@@ -274,7 +270,6 @@ export default function CheckoutPage() {
 }
 
 function CheckoutField({
-  icon,
   label,
   value,
   onChange,
@@ -283,7 +278,6 @@ function CheckoutField({
   maxLength,
   error,
 }: {
-  icon: ReactNode
   label: string
   value: string
   onChange: (value: string) => void
@@ -294,10 +288,7 @@ function CheckoutField({
 }) {
   return (
     <label className="block">
-      <span className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
-        {icon}
-        {label}
-      </span>
+      <span className="text-xs font-medium text-muted-foreground">{label}</span>
       <Input
         value={value}
         onChange={(event) => onChange(event.target.value)}
