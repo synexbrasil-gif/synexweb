@@ -5,7 +5,7 @@ import { getMercadoPagoIntegration } from "@/lib/contracts-db"
 const plans = {
   mensal: {
     name: "Mensal",
-    amount: 29.9,
+    amount: 0.01,
   },
   trimestral: {
     name: "Trimestral",

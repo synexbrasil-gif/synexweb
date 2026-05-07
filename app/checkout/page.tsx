@@ -12,7 +12,7 @@ const plans = [
   {
     id: "mensal",
     name: "Mensal",
-    price: "29,90",
+    price: "0,01",
     description: "Ideal para experimentar",
   },
   {
@@ -60,6 +60,12 @@ export default function CheckoutPage() {
 
   const canSubmit = fullName.trim().length > 2 && phone.replace(/\D/g, "").length >= 10
 
+  const copyPixCode = async () => {
+    if (!pixPayment?.qrCode) return
+
+    await navigator.clipboard.writeText(pixPayment.qrCode)
+  }
+
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     setSubmitted(true)
@@ -106,7 +112,7 @@ export default function CheckoutPage() {
       <div className="gradient-glow gradient-glow-3" style={{ bottom: "-280px", left: "20%" }} />
 
       <section className="relative z-10 flex min-h-screen items-center justify-center px-4 py-10">
-        <div className="grid w-full max-w-5xl gap-5 lg:grid-cols-[1fr_24rem]">
+        <div className="grid w-full max-w-5xl items-start gap-5 lg:grid-cols-[1fr_24rem]">
           <form
             onSubmit={handleSubmit}
             className="rounded-2xl border border-border/70 bg-[linear-gradient(135deg,oklch(0.99_0_0)_0%,oklch(0.97_0_0)_50%,oklch(0.93_0_0)_100%)] p-5 shadow-xl shadow-foreground/5 sm:p-7"
@@ -190,16 +196,18 @@ export default function CheckoutPage() {
                 <div className="space-y-4 rounded-xl border border-border/70 bg-background/60 p-4">
                   <div>
                     <p className="text-sm font-semibold text-foreground">Pix gerado</p>
-                    <p className="mt-1 text-xs text-muted-foreground">Use o QR Code ou o código copia e cola para pagar.</p>
+                    <p className="mt-1 text-xs text-muted-foreground">Use o QR Code ou copie o código Pix para pagar.</p>
                   </div>
 
                   {pixPayment.qrCodeBase64 && (
-                    <div className="flex justify-center rounded-xl bg-white p-4">
-                      <img
-                        src={`data:image/png;base64,${pixPayment.qrCodeBase64}`}
-                        alt="QR Code Pix"
-                        className="h-48 w-48"
-                      />
+                    <div className="rounded-2xl border border-border/70 bg-[linear-gradient(135deg,oklch(1_0_0)_0%,oklch(0.97_0_0)_100%)] p-4 shadow-inner">
+                      <div className="mx-auto flex h-56 w-56 items-center justify-center rounded-2xl bg-white p-4 shadow-lg shadow-foreground/10">
+                        <img
+                          src={`data:image/png;base64,${pixPayment.qrCodeBase64}`}
+                          alt="QR Code Pix"
+                          className="h-full w-full object-contain"
+                        />
+                      </div>
                     </div>
                   )}
 
@@ -217,20 +225,16 @@ export default function CheckoutPage() {
                     </div>
                   )}
 
-                  {pixPayment.ticketUrl && (
-                    <Button asChild variant="outline" className="h-11 w-full rounded-xl bg-background/70">
-                      <a href={pixPayment.ticketUrl} target="_blank" rel="noopener noreferrer">
-                        Abrir pagamento
-                      </a>
-                    </Button>
-                  )}
+                  <Button type="button" variant="outline" className="h-11 w-full rounded-xl bg-background/70" onClick={copyPixCode}>
+                    Copiar código
+                  </Button>
                 </div>
               )}
             </div>
           </form>
 
           <aside
-            className="rounded-2xl border border-border/70 bg-[linear-gradient(135deg,oklch(0.99_0_0)_0%,oklch(0.96_0_0)_54%,oklch(0.92_0_0)_100%)] p-5 shadow-xl shadow-foreground/5 sm:p-6"
+            className="self-start rounded-2xl border border-border/70 bg-[linear-gradient(135deg,oklch(0.99_0_0)_0%,oklch(0.96_0_0)_54%,oklch(0.92_0_0)_100%)] p-5 shadow-xl shadow-foreground/5 sm:p-6"
             style={{ animation: "synex-fade-in-left 460ms ease-out both" }}
           >
             <div className="border-b border-border/70 pb-5">
