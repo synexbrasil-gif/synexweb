@@ -57,6 +57,16 @@ function getDatabaseUrl() {
   return firstEnv("MYSQL_URL", "MYSQL_PUBLIC_URL", "DATABASE_URL")
 }
 
+function formatPersonName(name: string) {
+  return name
+    .trim()
+    .replace(/\s+/g, " ")
+    .toLocaleLowerCase("pt-BR")
+    .replace(/(^|\s)(\p{L})/gu, (_match, separator: string, letter: string) => {
+      return `${separator}${letter.toLocaleUpperCase("pt-BR")}`
+    })
+}
+
 function getPool() {
   if (pool) return pool
 
@@ -204,6 +214,7 @@ export async function createContract(input: ContractInput) {
   const contract: Contract = {
     id: randomUUID(),
     ...input,
+    fullName: formatPersonName(input.fullName),
     createdAt: new Date().toISOString(),
   }
 
@@ -236,6 +247,7 @@ export async function deleteContract(contractId: string) {
 
 export async function updateContract(contractId: string, input: ContractInput) {
   await ensureSchema()
+  const fullName = formatPersonName(input.fullName)
 
   await getPool().execute(
     `
@@ -243,7 +255,7 @@ export async function updateContract(contractId: string, input: ContractInput) {
       SET full_name = ?, username = ?, password = ?, activation_date = ?, plan = ?
       WHERE id = ?
     `,
-    [input.fullName, input.username, input.password, input.activationDate, input.plan, contractId],
+    [fullName, input.username, input.password, input.activationDate, input.plan, contractId],
   )
 
   const [rows] = await getPool().execute<ContractRow[]>(
