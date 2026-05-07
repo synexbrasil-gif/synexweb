@@ -221,15 +221,15 @@ export default function CheckoutPage() {
               </Button>
 
               {pixPayment && (
-                <div className="space-y-4 rounded-xl border border-border/70 bg-background/60 p-4">
+                <div className="space-y-4 rounded-xl border border-border/70 bg-background/60 p-4" style={{ animation: "synex-fade-in-up 360ms ease-out both" }}>
                   <div>
                     <p className="text-sm font-semibold text-foreground">Pix gerado</p>
                     <p className="mt-1 text-xs text-muted-foreground">Use o QR Code ou copie o código Pix para pagar.</p>
                   </div>
 
                   {pixPayment.qrCodeBase64 && (
-                    <div className="rounded-2xl bg-[linear-gradient(135deg,oklch(1_0_0)_0%,oklch(0.97_0_0)_100%)] p-4 shadow-inner">
-                      <div className="mx-auto flex h-56 w-56 items-center justify-center rounded-2xl bg-white p-4 shadow-lg shadow-foreground/10">
+                    <div className="flex justify-center">
+                      <div className="flex h-56 w-56 items-center justify-center rounded-2xl bg-transparent">
                         <img
                           src={`data:image/png;base64,${pixPayment.qrCodeBase64}`}
                           alt="QR Code Pix"
@@ -253,11 +253,10 @@ export default function CheckoutPage() {
                     </div>
                   )}
 
-                  <Button type="button" variant="outline" className="h-11 w-full rounded-xl bg-background/70" onClick={copyPixCode}>
+                  <Button type="button" className="h-11 w-full rounded-xl bg-foreground text-background hover:bg-foreground/90" onClick={copyPixCode}>
                     Copiar código
                   </Button>
                   {copyMessage && <p className="text-center text-xs font-medium text-muted-foreground">{copyMessage}</p>}
-                  <p className="text-center text-xs text-muted-foreground">Aguardando confirmação do pagamento...</p>
                 </div>
               )}
             </div>
