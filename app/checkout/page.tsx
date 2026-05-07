@@ -157,8 +157,7 @@ export default function CheckoutPage() {
           >
             <div className="flex items-start justify-between gap-4 border-b border-border/70 pb-5">
               <div>
-                <p className="text-xs font-semibold uppercase text-muted-foreground">Checkout</p>
-                <h1 className="mt-2 text-3xl font-bold tracking-tight text-foreground">Finalizar contratação</h1>
+                <h1 className="text-3xl font-bold tracking-tight text-foreground">Finalizar contratação</h1>
                 <p className="mt-2 max-w-xl text-sm text-muted-foreground">
                   Preencha seus dados para preparar o pagamento via Pix.
                 </p>
