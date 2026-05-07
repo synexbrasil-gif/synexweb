@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation"
 import {
   Eye,
   EyeOff,
+  CreditCard,
   FileText,
   Pencil,
   Plug,
@@ -35,9 +36,17 @@ type MercadoPagoIntegration = {
   updatedAt: string | null
 }
 
+type Plan = {
+  id: string
+  name: string
+  price: number
+  description: string
+  updatedAt: string | null
+}
+
 export default function AdminPage() {
   const router = useRouter()
-  const [activeSection, setActiveSection] = useState<"contracts" | "integrations">("contracts")
+  const [activeSection, setActiveSection] = useState<"contracts" | "plans" | "integrations">("contracts")
   const [contracts, setContracts] = useState<Contract[]>([])
   const [fullName, setFullName] = useState("")
   const [username, setUsername] = useState("")
@@ -58,6 +67,11 @@ export default function AdminPage() {
   const [isLoadingIntegration, setIsLoadingIntegration] = useState(true)
   const [isSavingIntegration, setIsSavingIntegration] = useState(false)
   const [integrationMessage, setIntegrationMessage] = useState("")
+  const [plans, setPlans] = useState<Plan[]>([])
+  const [planPrices, setPlanPrices] = useState<Record<string, string>>({})
+  const [isLoadingPlans, setIsLoadingPlans] = useState(true)
+  const [isSavingPlans, setIsSavingPlans] = useState(false)
+  const [plansMessage, setPlansMessage] = useState("")
 
   useEffect(() => {
     const loadContracts = async () => {
@@ -120,6 +134,38 @@ export default function AdminPage() {
 
     loadIntegration()
   }, [router])
+
+  useEffect(() => {
+    const loadPlans = async () => {
+      setIsLoadingPlans(true)
+
+      try {
+        const response = await fetch("/api/planos", { cache: "no-store" })
+        if (!response.ok) return
+
+        const data = await response.json()
+        if (!Array.isArray(data.plans)) return
+
+        const loadedPlans = data.plans as Plan[]
+        setPlans(loadedPlans)
+        setPlanPrices(
+          Object.fromEntries(
+            loadedPlans.map((plan) => [
+              plan.id,
+              Number(plan.price).toLocaleString("pt-BR", {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+              }),
+            ]),
+          ),
+        )
+      } finally {
+        setIsLoadingPlans(false)
+      }
+    }
+
+    loadPlans()
+  }, [])
 
   const filteredContracts = useMemo(() => {
     const query = searchQuery.trim().toLowerCase()
@@ -292,6 +338,64 @@ export default function AdminPage() {
     }
   }
 
+  const savePlans = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    setPlansMessage("")
+
+    const normalizedPlans = plans.map((plan) => ({
+      id: plan.id,
+      price: Number((planPrices[plan.id] ?? "").replace(/\./g, "").replace(",", ".")),
+    }))
+
+    if (normalizedPlans.some((plan) => !Number.isFinite(plan.price) || plan.price <= 0)) {
+      setPlansMessage("Informe precos validos para todos os planos.")
+      return
+    }
+
+    setIsSavingPlans(true)
+
+    try {
+      const response = await fetch("/api/planos", {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ plans: normalizedPlans }),
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        if (response.status === 401) {
+          router.replace("/contrato/login?next=/admin")
+          return
+        }
+
+        setPlansMessage(data?.error ?? "Nao foi possivel salvar os planos.")
+        return
+      }
+
+      const updatedPlans = data.plans as Plan[]
+      setPlans(updatedPlans)
+      setPlanPrices(
+        Object.fromEntries(
+          updatedPlans.map((plan) => [
+            plan.id,
+            Number(plan.price).toLocaleString("pt-BR", {
+              minimumFractionDigits: 2,
+              maximumFractionDigits: 2,
+            }),
+          ]),
+        ),
+      )
+      setPlansMessage("Planos salvos com sucesso.")
+    } catch {
+      setPlansMessage("Nao foi possivel salvar os planos.")
+    } finally {
+      setIsSavingPlans(false)
+    }
+  }
+
   return (
     <main className="relative min-h-screen overflow-hidden bg-[linear-gradient(115deg,oklch(0.93_0_0)_0%,oklch(0.98_0_0)_42%,oklch(0.92_0_0)_100%)] text-foreground">
       <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(115deg,oklch(0.93_0_0)_0%,oklch(0.98_0_0)_42%,oklch(0.92_0_0)_100%)]" />
@@ -326,6 +430,27 @@ export default function AdminPage() {
                 activeSection === "contracts" ? "bg-foreground/10 text-foreground" : "bg-foreground/5 text-muted-foreground",
               )}>
                 {contracts.length}
+              </span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveSection("plans")}
+              className={cn(
+                "group flex w-full items-center justify-between gap-3 rounded-xl px-3 py-3 text-sm font-medium transition-all duration-200",
+                activeSection === "plans"
+                  ? "bg-[linear-gradient(135deg,oklch(0.99_0_0)_0%,oklch(0.94_0_0)_58%,oklch(0.90_0_0)_100%)] text-sidebar-accent-foreground shadow-md shadow-foreground/5"
+                  : "text-sidebar-foreground/70 hover:bg-white/35 hover:text-sidebar-foreground hover:shadow-sm",
+              )}
+            >
+              <span className="flex min-w-0 items-center gap-3">
+                <CreditCard className="h-4 w-4 shrink-0" />
+                <span className="truncate">Planos</span>
+              </span>
+              <span className={cn(
+                "rounded-full px-2 py-0.5 text-[10px] font-semibold",
+                activeSection === "plans" ? "bg-foreground/10 text-foreground" : "bg-foreground/5 text-muted-foreground",
+              )}>
+                {plans.length}
               </span>
             </button>
             <button
@@ -522,6 +647,52 @@ export default function AdminPage() {
               </section>
             </section>
             </>
+            ) : activeSection === "plans" ? (
+            <section>
+              <form onSubmit={savePlans} className="rounded-lg border border-border/70 bg-[linear-gradient(135deg,oklch(0.99_0_0)_0%,oklch(0.97_0_0)_50%,oklch(0.94_0_0)_100%)] p-5 shadow-sm">
+                <div className="flex items-center gap-2">
+                  <CreditCard className="h-4 w-4 text-muted-foreground" />
+                  <h2 className="text-base font-semibold text-foreground">Planos</h2>
+                </div>
+                <p className="mt-2 text-sm text-muted-foreground">
+                  Altere os valores exibidos no site e usados para gerar Pix no checkout.
+                </p>
+
+                <div className={cn("mt-5 grid gap-4 md:grid-cols-3", isLoadingPlans && "animate-pulse")}>
+                  {plans.map((item) => (
+                    <div key={item.id} className="rounded-lg border border-border/70 bg-background/60 p-4">
+                      <div>
+                        <p className="text-sm font-semibold text-foreground">{item.name}</p>
+                        <p className="mt-1 text-xs text-muted-foreground">{item.description}</p>
+                      </div>
+                      <label className="mt-4 block">
+                        <span className="text-xs font-medium text-muted-foreground">Preco</span>
+                        <div className="mt-1 flex items-center rounded-lg border border-input bg-card px-3">
+                          <span className="text-sm font-semibold text-muted-foreground">R$</span>
+                          <Input
+                            value={planPrices[item.id] ?? ""}
+                            onChange={(event) => setPlanPrices((currentPrices) => ({ ...currentPrices, [item.id]: event.target.value }))}
+                            className="h-11 border-0 bg-transparent pl-2 shadow-none focus-visible:ring-0"
+                            placeholder="0,00"
+                            inputMode="decimal"
+                          />
+                        </div>
+                      </label>
+                    </div>
+                  ))}
+                </div>
+
+                {plansMessage && (
+                  <p className={cn("mt-4 text-sm font-medium", plansMessage.includes("sucesso") ? "text-foreground" : "text-destructive")}>
+                    {plansMessage}
+                  </p>
+                )}
+
+                <Button type="submit" className="mt-5 h-11 w-full rounded-lg bg-foreground text-background hover:bg-foreground/90" disabled={isSavingPlans || isLoadingPlans}>
+                  {isSavingPlans ? "Salvando..." : "Salvar planos"}
+                </Button>
+              </form>
+            </section>
             ) : (
             <section>
               <form onSubmit={saveMercadoPago} className="rounded-lg border border-border/70 bg-[linear-gradient(135deg,oklch(0.99_0_0)_0%,oklch(0.97_0_0)_50%,oklch(0.94_0_0)_100%)] p-5 shadow-sm">

@@ -1,23 +1,6 @@
 import { NextResponse } from "next/server"
 
-import { getMercadoPagoIntegration } from "@/lib/contracts-db"
-
-const plans = {
-  mensal: {
-    name: "Mensal",
-    amount: 29.9,
-  },
-  trimestral: {
-    name: "Trimestral",
-    amount: 49.9,
-  },
-  anual: {
-    name: "Anual",
-    amount: 99.9,
-  },
-}
-
-type PlanId = keyof typeof plans
+import { getMercadoPagoIntegration, getPlanById } from "@/lib/contracts-db"
 
 type PixCheckoutInput = {
   fullName?: string
@@ -50,8 +33,8 @@ export async function POST(request: Request) {
   const input = (await request.json()) as PixCheckoutInput
   const fullName = input.fullName?.trim()
   const phoneDigits = input.phone?.replace(/\D/g, "") ?? ""
-  const planId = input.planId as PlanId
-  const plan = plans[planId]
+  const planId = input.planId?.trim() ?? ""
+  const plan = planId ? await getPlanById(planId) : null
 
   if (!fullName || fullName.length < 3) {
     return NextResponse.json({ error: "Informe seu nome completo." }, { status: 400 })
@@ -78,7 +61,7 @@ export async function POST(request: Request) {
       "X-Idempotency-Key": crypto.randomUUID(),
     },
     body: JSON.stringify({
-      transaction_amount: plan.amount,
+      transaction_amount: plan.price,
       description: `Plano ${plan.name} - Synex Brasil`,
       payment_method_id: "pix",
       payer: {

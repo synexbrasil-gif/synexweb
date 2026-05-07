@@ -8,7 +8,14 @@ import { useNotification } from "@/components/notification-provider"
 import { Input } from "@/components/ui/input"
 import { cn } from "@/lib/utils"
 
-const plans = [
+type CheckoutPlan = {
+  id: string
+  name: string
+  price: string
+  description: string
+}
+
+const defaultPlans: CheckoutPlan[] = [
   {
     id: "mensal",
     name: "Mensal",
@@ -32,7 +39,8 @@ const plans = [
 export default function CheckoutPage() {
   const router = useRouter()
   const { notify } = useNotification()
-  const [selectedPlan, setSelectedPlan] = useState(plans[0].id)
+  const [plans, setPlans] = useState(defaultPlans)
+  const [selectedPlan, setSelectedPlan] = useState(defaultPlans[0].id)
   const [fullName, setFullName] = useState("")
   const [phone, setPhone] = useState("")
   const [submitted, setSubmitted] = useState(false)
@@ -54,6 +62,34 @@ export default function CheckoutPage() {
     if (matchedPlan) {
       setSelectedPlan(matchedPlan.id)
     }
+  }, [plans])
+
+  useEffect(() => {
+    const loadPlans = async () => {
+      try {
+        const response = await fetch("/api/planos", { cache: "no-store" })
+        if (!response.ok) return
+
+        const data = await response.json()
+        if (!Array.isArray(data.plans)) return
+
+        setPlans(
+          data.plans.map((plan: { id: string; name: string; price: number; description: string }) => ({
+            id: plan.id,
+            name: plan.name,
+            price: Number(plan.price).toLocaleString("pt-BR", {
+              minimumFractionDigits: 2,
+              maximumFractionDigits: 2,
+            }),
+            description: plan.description,
+          })),
+        )
+      } catch {
+        return
+      }
+    }
+
+    loadPlans()
   }, [])
 
   const canSubmit = fullName.trim().length > 2 && phone.replace(/\D/g, "").length >= 10

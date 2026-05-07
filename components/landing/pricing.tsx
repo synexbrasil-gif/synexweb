@@ -1,11 +1,13 @@
 "use client"
 
+import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Check } from "lucide-react"
 import { FadeIn } from "@/components/fade-in"
 
-const plans = [
+const defaultPlans = [
   {
+    id: "mensal",
     name: "Mensal",
     price: "29,90",
     description: "Ideal para experimentar",
@@ -19,6 +21,7 @@ const plans = [
     href: "/checkout?plano=mensal"
   },
   {
+    id: "trimestral",
     name: "Trimestral",
     price: "49,90",
     description: "Melhor custo-benefício",
@@ -32,6 +35,7 @@ const plans = [
     href: "/checkout?plano=trimestral"
   },
   {
+    id: "anual",
     name: "Anual",
     price: "99,90",
     description: "Maior economia",
@@ -47,6 +51,41 @@ const plans = [
 ]
 
 export function Pricing() {
+  const [plans, setPlans] = useState(defaultPlans)
+
+  useEffect(() => {
+    const loadPlans = async () => {
+      try {
+        const response = await fetch("/api/planos", { cache: "no-store" })
+        if (!response.ok) return
+
+        const data = await response.json()
+        if (!Array.isArray(data.plans)) return
+
+        setPlans((currentPlans) =>
+          currentPlans.map((currentPlan) => {
+            const databasePlan = data.plans.find((plan: { id: string }) => plan.id === currentPlan.id)
+            if (!databasePlan) return currentPlan
+
+            return {
+              ...currentPlan,
+              name: databasePlan.name,
+              price: Number(databasePlan.price).toLocaleString("pt-BR", {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+              }),
+              description: databasePlan.description,
+            }
+          }),
+        )
+      } catch {
+        return
+      }
+    }
+
+    loadPlans()
+  }, [])
+
   return (
     <section id="planos" className="py-24 md:py-36 scroll-mt-20">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">

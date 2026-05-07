@@ -20,6 +20,14 @@ export type MercadoPagoIntegration = {
   updatedAt: string | null
 }
 
+export type Plan = {
+  id: string
+  name: string
+  price: number
+  description: string
+  updatedAt: string | null
+}
+
 type ContractRow = RowDataPacket & {
   id: string
   full_name: string
@@ -40,8 +48,17 @@ type IntegrationRow = RowDataPacket & {
   updated_at: Date | string | null
 }
 
+type PlanRow = RowDataPacket & {
+  id: string
+  name: string
+  price: string | number
+  description: string
+  updated_at: Date | string | null
+}
+
 type ContractInput = Omit<Contract, "id" | "createdAt">
 type MercadoPagoIntegrationInput = Omit<MercadoPagoIntegration, "updatedAt">
+type PlanInput = Pick<Plan, "id" | "price">
 
 let pool: mysql.Pool | null = null
 let schemaReady: Promise<void> | null = null
@@ -115,6 +132,22 @@ function isAlreadyExistsSchemaError(error: unknown) {
   )
 }
 
+function mapPlan(row: PlanRow): Plan {
+  const updatedAt = row.updated_at
+    ? row.updated_at instanceof Date
+      ? row.updated_at.toISOString()
+      : new Date(row.updated_at).toISOString()
+    : null
+
+  return {
+    id: row.id,
+    name: row.name,
+    price: Number(row.price),
+    description: row.description,
+    updatedAt,
+  }
+}
+
 async function ensureContractPaymentSchema() {
   try {
     await getPool().execute("ALTER TABLE contracts ADD COLUMN payment_id VARCHAR(100) NULL")
@@ -158,6 +191,28 @@ async function ensureSchema() {
             updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
           )
         `),
+      )
+      .then(() =>
+        getPool().execute(`
+          CREATE TABLE IF NOT EXISTS plans (
+            id VARCHAR(50) NOT NULL PRIMARY KEY,
+            name VARCHAR(100) NOT NULL,
+            price DECIMAL(10,2) NOT NULL,
+            description VARCHAR(255) NOT NULL,
+            updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+          )
+        `),
+      )
+      .then(() =>
+        getPool().execute(
+          `
+            INSERT IGNORE INTO plans (id, name, price, description)
+            VALUES
+              ('mensal', 'Mensal', 29.90, 'Ideal para experimentar'),
+              ('trimestral', 'Trimestral', 49.90, 'Melhor custo-beneficio'),
+              ('anual', 'Anual', 99.90, 'Maior economia')
+          `,
+        ),
       )
       .then(() => undefined)
   }
@@ -371,4 +426,58 @@ export async function saveMercadoPagoIntegration(input: MercadoPagoIntegrationIn
   )
 
   return getMercadoPagoIntegration()
+}
+
+export async function listPlans() {
+  await ensureSchema()
+
+  const [rows] = await getPool().execute<PlanRow[]>(`
+    SELECT id, name, price, description, updated_at
+    FROM plans
+    ORDER BY FIELD(id, 'mensal', 'trimestral', 'anual'), name
+  `)
+
+  return rows.map(mapPlan)
+}
+
+export async function getPlanById(planId: string) {
+  await ensureSchema()
+
+  const [rows] = await getPool().execute<PlanRow[]>(
+    `
+      SELECT id, name, price, description, updated_at
+      FROM plans
+      WHERE id = ?
+      LIMIT 1
+    `,
+    [planId],
+  )
+
+  return rows[0] ? mapPlan(rows[0]) : null
+}
+
+export async function updatePlans(inputs: PlanInput[]) {
+  await ensureSchema()
+
+  const validPlanIds = new Set(["mensal", "trimestral", "anual"])
+  const plans = inputs.filter((plan) => validPlanIds.has(plan.id) && Number.isFinite(plan.price) && plan.price > 0)
+
+  if (plans.length === 0) {
+    return listPlans()
+  }
+
+  await Promise.all(
+    plans.map((plan) =>
+      getPool().execute(
+        `
+          UPDATE plans
+          SET price = ?
+          WHERE id = ?
+        `,
+        [plan.price, plan.id],
+      ),
+    ),
+  )
+
+  return listPlans()
 }
