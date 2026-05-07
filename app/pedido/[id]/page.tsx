@@ -32,9 +32,9 @@ export default async function PedidoPage({ params }: PedidoPageProps) {
         >
           <div className="border-b border-border/70 pb-6 text-center">
             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">Pedido aprovado</p>
-            <h1 className="mt-3 text-4xl font-bold tracking-tight text-foreground">Pagamento confirmado</h1>
+            <h1 className="mt-3 text-4xl font-bold tracking-tight text-foreground">Synex Brasil</h1>
             <p className="mx-auto mt-3 max-w-xl text-sm leading-6 text-muted-foreground">
-              Seu contrato foi criado com sucesso. Guarde esta página para consultar a referência do pedido.
+              Seu contrato foi criado com sucesso e sua assinatura já está ativa.
             </p>
           </div>
 
@@ -54,19 +54,6 @@ export default async function PedidoPage({ params }: PedidoPageProps) {
             <div className="rounded-2xl border border-border/60 bg-background/60 p-4">
               <p className="text-xs font-medium text-muted-foreground">Referência</p>
               <p className="mt-2 truncate font-mono text-sm font-semibold text-foreground">{paymentId}</p>
-            </div>
-          </div>
-
-          <div className="mt-6 rounded-2xl border border-border/60 bg-[linear-gradient(135deg,oklch(0.98_0_0)_0%,oklch(0.94_0_0)_100%)] p-4">
-            <div className="grid gap-3 sm:grid-cols-2">
-              <div>
-                <p className="text-xs font-medium text-muted-foreground">Usuário</p>
-                <p className="mt-1 font-mono text-base font-semibold text-foreground">{contract.username}</p>
-              </div>
-              <div>
-                <p className="text-xs font-medium text-muted-foreground">Senha</p>
-                <p className="mt-1 font-mono text-base font-semibold text-foreground">{contract.password}</p>
-              </div>
             </div>
           </div>
 
