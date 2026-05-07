@@ -16,6 +16,7 @@ import {
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { useNotification } from "@/components/notification-provider"
 import { cn } from "@/lib/utils"
 
 type Contract = {
@@ -46,6 +47,7 @@ type Plan = {
 
 export default function AdminPage() {
   const router = useRouter()
+  const { notify } = useNotification()
   const [activeSection, setActiveSection] = useState<"contracts" | "plans" | "integrations">("contracts")
   const [contracts, setContracts] = useState<Contract[]>([])
   const [fullName, setFullName] = useState("")
@@ -71,7 +73,6 @@ export default function AdminPage() {
   const [planPrices, setPlanPrices] = useState<Record<string, string>>({})
   const [isLoadingPlans, setIsLoadingPlans] = useState(true)
   const [isSavingPlans, setIsSavingPlans] = useState(false)
-  const [plansMessage, setPlansMessage] = useState("")
 
   useEffect(() => {
     const loadContracts = async () => {
@@ -340,7 +341,6 @@ export default function AdminPage() {
 
   const savePlans = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
-    setPlansMessage("")
 
     const normalizedPlans = plans.map((plan) => ({
       id: plan.id,
@@ -348,7 +348,7 @@ export default function AdminPage() {
     }))
 
     if (normalizedPlans.some((plan) => !Number.isFinite(plan.price) || plan.price <= 0)) {
-      setPlansMessage("Informe precos validos para todos os planos.")
+      notify({ title: "Precos invalidos", description: "Informe precos validos para todos os planos.", tone: "error" })
       return
     }
 
@@ -371,7 +371,11 @@ export default function AdminPage() {
           return
         }
 
-        setPlansMessage(data?.error ?? "Nao foi possivel salvar os planos.")
+        notify({
+          title: "Planos nao salvos",
+          description: data?.error ?? "Nao foi possivel salvar os planos.",
+          tone: "error",
+        })
         return
       }
 
@@ -388,9 +392,9 @@ export default function AdminPage() {
           ]),
         ),
       )
-      setPlansMessage("Planos salvos com sucesso.")
+      notify({ title: "Planos salvos", description: "Os precos foram atualizados com sucesso.", tone: "success" })
     } catch {
-      setPlansMessage("Nao foi possivel salvar os planos.")
+      notify({ title: "Planos nao salvos", description: "Nao foi possivel salvar os planos.", tone: "error" })
     } finally {
       setIsSavingPlans(false)
     }
@@ -681,12 +685,6 @@ export default function AdminPage() {
                     </div>
                   ))}
                 </div>
-
-                {plansMessage && (
-                  <p className={cn("mt-4 text-sm font-medium", plansMessage.includes("sucesso") ? "text-foreground" : "text-destructive")}>
-                    {plansMessage}
-                  </p>
-                )}
 
                 <Button type="submit" className="mt-5 h-11 w-full rounded-lg bg-foreground text-background hover:bg-foreground/90" disabled={isSavingPlans || isLoadingPlans}>
                   {isSavingPlans ? "Salvando..." : "Salvar planos"}
