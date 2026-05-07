@@ -36,6 +36,9 @@ export default function CheckoutPage() {
   const [submitted, setSubmitted] = useState(false)
   const [isGeneratingPix, setIsGeneratingPix] = useState(false)
   const [pixError, setPixError] = useState("")
+  const [copyMessage, setCopyMessage] = useState("")
+  const [isPaymentApproved, setIsPaymentApproved] = useState(false)
+  const [approvedContract, setApprovedContract] = useState<{ fullName?: string; plan?: string } | null>(null)
   const [pixPayment, setPixPayment] = useState<{
     id?: number
     status?: string
@@ -60,17 +63,53 @@ export default function CheckoutPage() {
 
   const canSubmit = fullName.trim().length > 2 && phone.replace(/\D/g, "").length >= 10
 
+  useEffect(() => {
+    if (!pixPayment?.id || isPaymentApproved) return
+
+    let isMounted = true
+
+    const checkPaymentStatus = async () => {
+      try {
+        const response = await fetch(`/api/checkout/pix/status?id=${encodeURIComponent(String(pixPayment.id))}`, {
+          cache: "no-store",
+        })
+        const data = await response.json()
+
+        if (!isMounted || !response.ok) return
+
+        if (data.approved) {
+          setIsPaymentApproved(true)
+          setApprovedContract(data.contract ?? null)
+        }
+      } catch {
+        return
+      }
+    }
+
+    checkPaymentStatus()
+    const intervalId = window.setInterval(checkPaymentStatus, 5000)
+
+    return () => {
+      isMounted = false
+      window.clearInterval(intervalId)
+    }
+  }, [pixPayment?.id, isPaymentApproved])
+
   const copyPixCode = async () => {
     if (!pixPayment?.qrCode) return
 
     await navigator.clipboard.writeText(pixPayment.qrCode)
+    setCopyMessage("Código copiado.")
   }
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     setSubmitted(true)
     setPixError("")
+    setCopyMessage("")
     setPixPayment(null)
+    setIsPaymentApproved(false)
+    setApprovedContract(null)
 
     if (!canSubmit) return
 
@@ -128,6 +167,29 @@ export default function CheckoutPage() {
               </div>
             </div>
 
+            {isPaymentApproved ? (
+              <div className="mt-6 rounded-2xl border border-border/70 bg-background/60 p-6 text-center">
+                <p className="text-xs font-semibold uppercase text-muted-foreground">Pagamento aprovado</p>
+                <h2 className="mt-3 text-3xl font-bold tracking-tight text-foreground">Tudo certo</h2>
+                <p className="mx-auto mt-3 max-w-md text-sm text-muted-foreground">
+                  Seu pagamento foi aprovado e o contrato foi criado para{" "}
+                  <span className="font-semibold text-foreground">{approvedContract?.fullName ?? fullName}</span>.
+                </p>
+                <div className="mx-auto mt-5 grid max-w-md gap-3 sm:grid-cols-2">
+                  <div className="rounded-xl bg-background/70 p-4 text-left">
+                    <p className="text-xs font-medium text-muted-foreground">Plano</p>
+                    <p className="mt-1 font-semibold text-foreground">{approvedContract?.plan ?? plan.name}</p>
+                  </div>
+                  <div className="rounded-xl bg-background/70 p-4 text-left">
+                    <p className="text-xs font-medium text-muted-foreground">Credenciais</p>
+                    <p className="mt-1 font-mono text-sm font-semibold text-foreground">0 / 0</p>
+                  </div>
+                </div>
+                <Button type="button" className="mt-6 h-12 rounded-xl bg-foreground px-8 text-background hover:bg-foreground/90">
+                  Minhas credenciais
+                </Button>
+              </div>
+            ) : (
             <div className="mt-6 space-y-6">
               <div>
                 <p className="text-sm font-semibold text-foreground">Escolha o plano</p>
@@ -228,9 +290,12 @@ export default function CheckoutPage() {
                   <Button type="button" variant="outline" className="h-11 w-full rounded-xl bg-background/70" onClick={copyPixCode}>
                     Copiar código
                   </Button>
+                  {copyMessage && <p className="text-center text-xs font-medium text-muted-foreground">{copyMessage}</p>}
+                  <p className="text-center text-xs text-muted-foreground">Aguardando confirmação do pagamento...</p>
                 </div>
               )}
             </div>
+            )}
           </form>
 
           <aside

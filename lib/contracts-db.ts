@@ -9,6 +9,7 @@ export type Contract = {
   activationDate: string
   plan: string
   createdAt: string
+  paymentId?: string | null
 }
 
 export type MercadoPagoIntegration = {
@@ -26,6 +27,7 @@ type ContractRow = RowDataPacket & {
   password: string
   activation_date: string
   plan: string
+  payment_id: string | null
   created_at: Date | string
 }
 
@@ -94,6 +96,29 @@ function getPool() {
   return pool
 }
 
+function isAlreadyExistsSchemaError(error: unknown) {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "code" in error &&
+    (error.code === "ER_DUP_FIELDNAME" || error.code === "ER_DUP_KEYNAME")
+  )
+}
+
+async function ensureContractPaymentSchema() {
+  try {
+    await getPool().execute("ALTER TABLE contracts ADD COLUMN payment_id VARCHAR(100) NULL")
+  } catch (error) {
+    if (!isAlreadyExistsSchemaError(error)) throw error
+  }
+
+  try {
+    await getPool().execute("CREATE UNIQUE INDEX idx_contracts_payment_id ON contracts (payment_id)")
+  } catch (error) {
+    if (!isAlreadyExistsSchemaError(error)) throw error
+  }
+}
+
 async function ensureSchema() {
   if (!schemaReady) {
     schemaReady = getPool()
@@ -105,10 +130,13 @@ async function ensureSchema() {
           password VARCHAR(255) NOT NULL,
           activation_date VARCHAR(50) NOT NULL,
           plan VARCHAR(100) NOT NULL,
+          payment_id VARCHAR(100) NULL,
           created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-          INDEX idx_contracts_username (username)
+          INDEX idx_contracts_username (username),
+          UNIQUE INDEX idx_contracts_payment_id (payment_id)
         )
       `)
+      .then(() => ensureContractPaymentSchema())
       .then(() =>
         getPool().execute(`
           CREATE TABLE IF NOT EXISTS payment_integrations (
@@ -153,6 +181,7 @@ function mapContract(row: ContractRow): Contract {
     password: row.password,
     activationDate: row.activation_date,
     plan: row.plan,
+    paymentId: row.payment_id,
     createdAt,
   }
 }
@@ -161,7 +190,7 @@ export async function listContracts() {
   await ensureSchema()
 
   const [rows] = await getPool().execute<ContractRow[]>(`
-    SELECT id, full_name, username, password, activation_date, plan, created_at
+    SELECT id, full_name, username, password, activation_date, plan, payment_id, created_at
     FROM contracts
     ORDER BY created_at DESC
   `)
@@ -180,8 +209,8 @@ export async function createContract(input: ContractInput) {
 
   await getPool().execute(
     `
-      INSERT INTO contracts (id, full_name, username, password, activation_date, plan, created_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO contracts (id, full_name, username, password, activation_date, plan, payment_id, created_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     `,
     [
       contract.id,
@@ -190,6 +219,7 @@ export async function createContract(input: ContractInput) {
       contract.password,
       contract.activationDate,
       contract.plan,
+      contract.paymentId ?? null,
       contract.createdAt.slice(0, 19).replace("T", " "),
     ],
   )
@@ -209,7 +239,7 @@ export async function findSubscriberByCredentials(username: string, password: st
 
   const [rowsByCredentials] = await getPool().execute<ContractRow[]>(
     `
-      SELECT id, full_name, username, password, activation_date, plan, created_at
+      SELECT id, full_name, username, password, activation_date, plan, payment_id, created_at
       FROM contracts
       WHERE LOWER(TRIM(username)) = LOWER(TRIM(?)) AND TRIM(password) = TRIM(?)
       ORDER BY created_at DESC
@@ -224,7 +254,7 @@ export async function findSubscriberByCredentials(username: string, password: st
 
   const [rowsByUsername] = await getPool().execute<ContractRow[]>(
     `
-      SELECT id, full_name, username, password, activation_date, plan, created_at
+      SELECT id, full_name, username, password, activation_date, plan, payment_id, created_at
       FROM contracts
       WHERE LOWER(TRIM(username)) = LOWER(TRIM(?))
       ORDER BY created_at DESC
@@ -234,6 +264,41 @@ export async function findSubscriberByCredentials(username: string, password: st
   )
 
   return rowsByUsername[0] ? mapContract(rowsByUsername[0]) : null
+}
+
+export async function findContractByPaymentId(paymentId: string) {
+  await ensureSchema()
+
+  const [rows] = await getPool().execute<ContractRow[]>(
+    `
+      SELECT id, full_name, username, password, activation_date, plan, payment_id, created_at
+      FROM contracts
+      WHERE payment_id = ?
+      LIMIT 1
+    `,
+    [paymentId],
+  )
+
+  return rows[0] ? mapContract(rows[0]) : null
+}
+
+export async function createContractFromApprovedPayment(input: {
+  paymentId: string
+  fullName: string
+  plan: string
+  activationDate: string
+}) {
+  const existingContract = await findContractByPaymentId(input.paymentId)
+  if (existingContract) return existingContract
+
+  return createContract({
+    fullName: input.fullName,
+    username: "0",
+    password: "0",
+    activationDate: input.activationDate,
+    plan: input.plan,
+    paymentId: input.paymentId,
+  })
 }
 
 export async function getMercadoPagoIntegration() {
