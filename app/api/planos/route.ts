@@ -46,8 +46,8 @@ export async function PATCH(request: Request) {
     price: Number(String(plan.price ?? "").replace(/\./g, "").replace(",", ".")),
   }))
 
-  if (normalizedPlans.some((plan) => !plan.id || !Number.isFinite(plan.price) || plan.price <= 0)) {
-    return NextResponse.json({ error: "Informe precos validos para os planos." }, { status: 400 })
+  if (normalizedPlans.some((plan) => !plan.id || !Number.isFinite(plan.price) || plan.price < 0.01)) {
+    return NextResponse.json({ error: "Informe valores a partir de R$ 0,01." }, { status: 400 })
   }
 
   try {

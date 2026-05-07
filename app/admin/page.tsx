@@ -347,8 +347,8 @@ export default function AdminPage() {
       price: Number((planPrices[plan.id] ?? "").replace(/\./g, "").replace(",", ".")),
     }))
 
-    if (normalizedPlans.some((plan) => !Number.isFinite(plan.price) || plan.price <= 0)) {
-      notify({ title: "Precos invalidos", description: "Informe precos validos para todos os planos.", tone: "error" })
+    if (normalizedPlans.some((plan) => !Number.isFinite(plan.price) || plan.price < 0.01)) {
+      notify({ title: "Precos invalidos", description: "Informe valores a partir de R$ 0,01.", tone: "error" })
       return
     }
 

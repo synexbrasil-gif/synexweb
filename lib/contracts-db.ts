@@ -460,7 +460,7 @@ export async function updatePlans(inputs: PlanInput[]) {
   await ensureSchema()
 
   const validPlanIds = new Set(["mensal", "trimestral", "anual"])
-  const plans = inputs.filter((plan) => validPlanIds.has(plan.id) && Number.isFinite(plan.price) && plan.price > 0)
+  const plans = inputs.filter((plan) => validPlanIds.has(plan.id) && Number.isFinite(plan.price) && plan.price >= 0.01)
 
   if (plans.length === 0) {
     return listPlans()
