@@ -229,11 +229,11 @@ export default function CheckoutPage() {
 
                   {pixPayment.qrCodeBase64 && (
                     <div className="flex justify-center">
-                      <div className="flex h-56 w-56 items-center justify-center rounded-2xl bg-transparent">
+                      <div className="flex h-56 w-56 items-center justify-center">
                         <img
                           src={`data:image/png;base64,${pixPayment.qrCodeBase64}`}
                           alt="QR Code Pix"
-                          className="h-full w-full object-contain"
+                          className="h-full w-full object-contain mix-blend-multiply"
                         />
                       </div>
                     </div>
