@@ -32,10 +32,7 @@ export default async function PedidoPage({ params }: PedidoPageProps) {
         >
           <div className="border-b border-border/70 pb-6 text-center">
             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">Pedido aprovado</p>
-            <h1 className="mt-3 text-4xl font-bold tracking-tight text-foreground">Synex Brasil</h1>
-            <p className="mx-auto mt-3 max-w-xl text-sm leading-6 text-muted-foreground">
-              Seu contrato foi criado com sucesso e sua assinatura já está ativa.
-            </p>
+            <h1 className="mt-3 text-4xl font-bold tracking-tight text-foreground">Contrato Ativo</h1>
           </div>
 
           <div className="mt-6 grid gap-3 sm:grid-cols-2">
