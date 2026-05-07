@@ -30,18 +30,10 @@ import {
   Settings,
   RotateCcw,
   Captions,
-  Cast,
   PictureInPicture2,
   X,
   AlertCircle
 } from "lucide-react"
-
-type RemotePlaybackVideo = HTMLVideoElement & {
-  remote?: {
-    prompt: () => Promise<void>
-    state?: "connecting" | "connected" | "disconnected"
-  }
-}
 
 type MobileFullscreenVideo = HTMLVideoElement & {
   webkitDisplayingFullscreen?: boolean
@@ -185,14 +177,6 @@ function shouldUseBlackLogo(...values: string[]) {
 function shouldUseLargeLogo(...values: string[]) {
   const haystack = normalizeFilterText(values.join(" "))
   return LARGE_LOGO_TERMS.some((term) => haystack.includes(term))
-}
-
-declare global {
-  interface Window {
-    __onGCastApiAvailable?: (isAvailable: boolean) => void
-    cast?: any
-    chrome?: any
-  }
 }
 
 export default function DashboardPage() {
@@ -949,85 +933,6 @@ export default function DashboardPage() {
     }, 3500)
   }, [])
 
-  const loadCastSdk = () => {
-    return new Promise<boolean>((resolve) => {
-      if (window.cast?.framework && window.chrome?.cast) {
-        resolve(true)
-        return
-      }
-
-      const existingScript = document.querySelector<HTMLScriptElement>('script[data-synex-cast="true"]')
-      const timeout = window.setTimeout(() => resolve(false), 7000)
-
-      window.__onGCastApiAvailable = (isAvailable: boolean) => {
-        window.clearTimeout(timeout)
-        resolve(isAvailable)
-      }
-
-      if (existingScript) return
-
-      const script = document.createElement("script")
-      script.src = "https://www.gstatic.com/cv/js/sender/v1/cast_sender.js?loadCastFramework=1"
-      script.async = true
-      script.dataset.synexCast = "true"
-      script.onerror = () => {
-        window.clearTimeout(timeout)
-        resolve(false)
-      }
-      document.head.appendChild(script)
-    })
-  }
-
-  const startCasting = async () => {
-    if (!selectedChannel || !selectedStreamUrl) {
-      showPlayerNotice("Selecione um canal antes de transmitir.")
-      return
-    }
-
-    const castReady = await loadCastSdk()
-    if (castReady && window.cast?.framework && window.chrome?.cast) {
-      try {
-        const castContext = window.cast.framework.CastContext.getInstance()
-        castContext.setOptions({
-          receiverApplicationId: window.chrome.cast.media.DEFAULT_MEDIA_RECEIVER_APP_ID,
-          autoJoinPolicy: window.chrome.cast.AutoJoinPolicy.ORIGIN_SCOPED,
-        })
-
-        const session = await castContext.requestSession()
-        const mediaInfo = new window.chrome.cast.media.MediaInfo(selectedStreamUrl, "application/x-mpegURL")
-        mediaInfo.metadata = new window.chrome.cast.media.GenericMediaMetadata()
-        mediaInfo.metadata.title = selectedChannel.name
-
-        const request = new window.chrome.cast.media.LoadRequest(mediaInfo)
-        await session.loadMedia(request)
-        showPlayerNotice("Transmitindo para o dispositivo selecionado.")
-        return
-      } catch (err) {
-        const castError = err instanceof Error ? err.message : String(err)
-        if (!castError.toLowerCase().includes("cancel")) {
-          showPlayerNotice("Não foi possível iniciar a transmissão.")
-        }
-        return
-      }
-    }
-
-    const video = videoRef.current as RemotePlaybackVideo | null
-
-    if (!video?.remote?.prompt) {
-      showPlayerNotice("Transmissão para dispositivos próximos não está disponível neste navegador.")
-      return
-    }
-
-    try {
-      await video.remote.prompt()
-    } catch (err) {
-      const castError = err instanceof DOMException ? err.name : ""
-      if (castError !== "AbortError" && castError !== "NotAllowedError") {
-        showPlayerNotice("Não foi possível iniciar a transmissão.")
-      }
-    }
-  }
-
   const handleLogout = () => {
     stopPlayback()
     sessionStorage.removeItem("iptv_username")
@@ -1443,7 +1348,7 @@ export default function DashboardPage() {
                 playsInline
                 controls={false}
                 crossOrigin="anonymous"
-                disableRemotePlayback={false}
+                disableRemotePlayback
                 onClick={selectedChannel ? togglePlay : undefined}
                 onPlay={() => {
                   setIsPlaying(true)
@@ -1510,9 +1415,6 @@ export default function DashboardPage() {
                         </Button>
                         <input type="range" min="0" max="1" step="0.05" value={isMuted ? 0 : volume} onChange={handleVolumeChange} className="h-1 w-0 cursor-pointer appearance-none rounded-full bg-white/20 accent-white opacity-0 transition-all duration-300 group-hover/volume:w-24 group-hover/volume:opacity-100" />
                       </div>
-                      <Button variant="ghost" size="icon" className="hidden h-10 w-10 rounded-full bg-white/10 text-white hover:bg-white/20 sm:inline-flex" onClick={() => startCasting()}>
-                        <Cast className="h-4 w-4" />
-                      </Button>
                       <Button variant="ghost" size="icon" className="h-10 w-10 rounded-full bg-white/10 text-white hover:bg-white/20" onClick={reloadCurrentChannel}>
                         <RefreshCw className="h-4 w-4" />
                       </Button>
