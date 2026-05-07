@@ -32,7 +32,7 @@ export default async function PedidoPage({ params }: PedidoPageProps) {
         >
           <div className="border-b border-border/70 pb-6 text-center">
             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">SYNEX BRASIL</p>
-            <h1 className="mt-3 text-4xl font-bold tracking-tight text-foreground">Seu contrato</h1>
+            <h1 className="mt-3 text-4xl font-bold tracking-tight text-foreground">Meu contrato</h1>
           </div>
 
           <div className="mt-6 grid gap-3 sm:grid-cols-2">
