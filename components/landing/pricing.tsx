@@ -4,6 +4,7 @@ import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Check } from "lucide-react"
 import { FadeIn } from "@/components/fade-in"
+import type { Plan } from "@/lib/contracts-db"
 
 const defaultPlans = [
   {
@@ -15,7 +16,7 @@ const defaultPlans = [
       "Canais esportivos ao vivo",
       "Jogos e eventos esportivos",
       "Qualidade Full HD",
-      "1 dispositivo simultâneo",
+      "Player pelo navegador",
       "Suporte via WhatsApp"
     ],
     href: "/checkout?plano=mensal"
@@ -24,12 +25,12 @@ const defaultPlans = [
     id: "trimestral",
     name: "Trimestral",
     price: "49,90",
-    description: "Melhor custo-benefício",
+    description: "Melhor custo-beneficio",
     features: [
       "Canais esportivos ao vivo",
       "Jogos e eventos esportivos",
       "Qualidade Full HD",
-      "1 dispositivo simultâneo",
+      "Player pelo navegador",
       "Suporte via WhatsApp"
     ],
     href: "/checkout?plano=trimestral"
@@ -43,15 +44,38 @@ const defaultPlans = [
       "Canais esportivos ao vivo",
       "Jogos e eventos esportivos",
       "Qualidade Full HD",
-      "1 dispositivo simultâneo",
+      "Player pelo navegador",
       "Suporte via WhatsApp"
     ],
     href: "/checkout?plano=anual"
   }
 ]
 
-export function Pricing() {
-  const [plans, setPlans] = useState(defaultPlans)
+type PricingPlan = Pick<Plan, "id" | "name" | "price" | "description">
+
+function formatPrice(price: number) {
+  return Number(price).toLocaleString("pt-BR", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })
+}
+
+function mergePlans(databasePlans: PricingPlan[]) {
+  return defaultPlans.map((currentPlan) => {
+    const databasePlan = databasePlans.find((plan) => plan.id === currentPlan.id)
+    if (!databasePlan) return currentPlan
+
+    return {
+      ...currentPlan,
+      name: databasePlan.name,
+      price: formatPrice(databasePlan.price),
+      description: databasePlan.description,
+    }
+  })
+}
+
+export function Pricing({ initialPlans }: { initialPlans?: PricingPlan[] }) {
+  const [plans, setPlans] = useState(() => mergePlans(initialPlans ?? []))
 
   useEffect(() => {
     const loadPlans = async () => {
@@ -62,22 +86,7 @@ export function Pricing() {
         const data = await response.json()
         if (!Array.isArray(data.plans)) return
 
-        setPlans((currentPlans) =>
-          currentPlans.map((currentPlan) => {
-            const databasePlan = data.plans.find((plan: { id: string }) => plan.id === currentPlan.id)
-            if (!databasePlan) return currentPlan
-
-            return {
-              ...currentPlan,
-              name: databasePlan.name,
-              price: Number(databasePlan.price).toLocaleString("pt-BR", {
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2,
-              }),
-              description: databasePlan.description,
-            }
-          }),
-        )
+        setPlans(mergePlans(data.plans))
       } catch {
         return
       }

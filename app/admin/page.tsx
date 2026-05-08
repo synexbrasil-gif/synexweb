@@ -7,6 +7,7 @@ import {
   EyeOff,
   CreditCard,
   FileText,
+  KeyRound,
   Pencil,
   Plug,
   Search,
@@ -24,6 +25,8 @@ type Contract = {
   fullName: string
   username: string
   password: string
+  loginUsername?: string | null
+  loginPassword?: string | null
   activationDate: string
   plan: string
   createdAt: string
@@ -59,8 +62,10 @@ function parseCurrencyValue(value: string) {
 export default function AdminPage() {
   const router = useRouter()
   const { notify } = useNotification()
-  const [activeSection, setActiveSection] = useState<"contracts" | "plans" | "integrations">("contracts")
+  const [activeSection, setActiveSection] = useState<"contracts" | "logins" | "plans" | "integrations">("contracts")
   const [contracts, setContracts] = useState<Contract[]>([])
+  const [credentialDrafts, setCredentialDrafts] = useState<Record<string, { username: string; password: string }>>({})
+  const [savingCredentialId, setSavingCredentialId] = useState<string | null>(null)
   const [fullName, setFullName] = useState("")
   const [username, setUsername] = useState("")
   const [password, setPassword] = useState("")
@@ -105,6 +110,17 @@ export default function AdminPage() {
         const data = await response.json()
         if (Array.isArray(data.contracts)) {
           setContracts(data.contracts)
+          setCredentialDrafts(
+            Object.fromEntries(
+              (data.contracts as Contract[]).map((contract) => [
+                contract.id,
+                {
+                  username: contract.loginUsername ?? "",
+                  password: contract.loginPassword ?? "",
+                },
+              ]),
+            ),
+          )
         }
       } catch {
         setError("Nao foi possivel carregar os contratos.")
@@ -261,6 +277,13 @@ export default function AdminPage() {
           ? currentContracts.map((contract) => (contract.id === editingContractId ? data.contract : contract))
           : [data.contract, ...currentContracts],
       )
+      setCredentialDrafts((currentDrafts) => ({
+        ...currentDrafts,
+        [data.contract.id]: {
+          username: data.contract.loginUsername ?? "",
+          password: data.contract.loginPassword ?? "",
+        },
+      }))
     } catch {
       setError("Nao foi possivel salvar o contrato.")
       return
@@ -290,6 +313,11 @@ export default function AdminPage() {
       }
 
       setContracts((currentContracts) => currentContracts.filter((contract) => contract.id !== contractId))
+      setCredentialDrafts((currentDrafts) => {
+        const nextDrafts = { ...currentDrafts }
+        delete nextDrafts[contractId]
+        return nextDrafts
+      })
       if (editingContractId === contractId) {
         resetContractForm()
       }
@@ -342,11 +370,104 @@ export default function AdminPage() {
 
       const integration = data.integration as MercadoPagoIntegration
       setMercadoPagoUpdatedAt(integration.updatedAt)
-      setIntegrationMessage("Integração salva com sucesso.")
+      notify({
+        title: "Integração salva",
+        description: "As credenciais do Mercado Pago foram atualizadas com sucesso.",
+        tone: "success",
+      })
     } catch {
       setIntegrationMessage("Nao foi possivel salvar a integracao.")
     } finally {
       setIsSavingIntegration(false)
+    }
+  }
+
+  const updateCredentialDraft = (contractId: string, field: "username" | "password", value: string) => {
+    setCredentialDrafts((currentDrafts) => ({
+      ...currentDrafts,
+      [contractId]: {
+        username: currentDrafts[contractId]?.username ?? "",
+        password: currentDrafts[contractId]?.password ?? "",
+        [field]: value,
+      },
+    }))
+  }
+
+  const saveContractCredentials = async (contract: Contract) => {
+    const draft = credentialDrafts[contract.id] ?? {
+      username: contract.loginUsername ?? "",
+      password: contract.loginPassword ?? "",
+    }
+    const cleanUsername = draft.username.trim()
+    const cleanPassword = draft.password.trim()
+
+    if (!cleanUsername || !cleanPassword) {
+      notify({ title: "Login incompleto", description: "Informe usuario e senha para o contrato.", tone: "error" })
+      return
+    }
+
+    const duplicatedContract = contracts.find((currentContract) => {
+      if (currentContract.id === contract.id) return false
+      return (credentialDrafts[currentContract.id]?.username ?? currentContract.loginUsername ?? "")
+        .trim()
+        .toLowerCase() === cleanUsername.toLowerCase()
+    })
+
+    if (duplicatedContract) {
+      notify({
+        title: "Usuario ja usado",
+        description: `Este usuario ja esta definido para ${duplicatedContract.fullName}.`,
+        tone: "error",
+      })
+      return
+    }
+
+    setSavingCredentialId(contract.id)
+
+    try {
+      const response = await fetch("/api/contratos", {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          id: contract.id,
+          mode: "credentials",
+          username: cleanUsername,
+          password: cleanPassword,
+        }),
+      })
+
+      const data = await response.json().catch(() => null)
+
+      if (!response.ok) {
+        if (response.status === 401) {
+          router.replace("/contrato/login?next=/admin")
+          return
+        }
+
+        notify({ title: "Login nao salvo", description: data?.error ?? "Nao foi possivel atualizar o login.", tone: "error" })
+        return
+      }
+
+      const updatedContract = data.contract as Contract
+      setContracts((currentContracts) =>
+        currentContracts.map((currentContract) =>
+          currentContract.id === updatedContract.id ? updatedContract : currentContract,
+        ),
+      )
+      setCredentialDrafts((currentDrafts) => ({
+        ...currentDrafts,
+        [updatedContract.id]: {
+        username: updatedContract.loginUsername ?? "",
+        password: updatedContract.loginPassword ?? "",
+        },
+      }))
+      notify({ title: "Login salvo", description: "Usuario e senha do contrato foram atualizados.", tone: "success" })
+    } catch {
+      notify({ title: "Login nao salvo", description: "Nao foi possivel atualizar o login.", tone: "error" })
+    } finally {
+      setSavingCredentialId(null)
     }
   }
 
@@ -443,6 +564,27 @@ export default function AdminPage() {
               <span className={cn(
                 "rounded-full px-2 py-0.5 text-[10px] font-semibold",
                 activeSection === "contracts" ? "bg-foreground/10 text-foreground" : "bg-foreground/5 text-muted-foreground",
+              )}>
+                {contracts.length}
+              </span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveSection("logins")}
+              className={cn(
+                "group flex w-full items-center justify-between gap-3 rounded-xl px-3 py-3 text-sm font-medium transition-all duration-200",
+                activeSection === "logins"
+                  ? "bg-[linear-gradient(135deg,oklch(0.99_0_0)_0%,oklch(0.94_0_0)_58%,oklch(0.90_0_0)_100%)] text-sidebar-accent-foreground shadow-md shadow-foreground/5"
+                  : "text-sidebar-foreground/70 hover:bg-white/35 hover:text-sidebar-foreground hover:shadow-sm",
+              )}
+            >
+              <span className="flex min-w-0 items-center gap-3">
+                <KeyRound className="h-4 w-4 shrink-0" />
+                <span className="truncate">Login</span>
+              </span>
+              <span className={cn(
+                "rounded-full px-2 py-0.5 text-[10px] font-semibold",
+                activeSection === "logins" ? "bg-foreground/10 text-foreground" : "bg-foreground/5 text-muted-foreground",
               )}>
                 {contracts.length}
               </span>
@@ -662,6 +804,103 @@ export default function AdminPage() {
               </section>
             </section>
             </>
+            ) : activeSection === "logins" ? (
+            <section className="min-w-0 rounded-lg border border-border/70 bg-[linear-gradient(135deg,oklch(0.99_0_0)_0%,oklch(0.97_0_0)_50%,oklch(0.94_0_0)_100%)] shadow-sm">
+              <div className="flex flex-col gap-3 border-b border-border/70 p-4 lg:flex-row lg:items-center lg:justify-between">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <KeyRound className="h-4 w-4 text-muted-foreground" />
+                    <h2 className="text-base font-semibold text-foreground">Login dos contratos</h2>
+                  </div>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Defina o usuario e a senha de acesso para cada cliente.
+                  </p>
+                </div>
+
+                <div className="relative min-w-0 lg:w-72">
+                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                  <Input
+                    value={searchQuery}
+                    onChange={(event) => setSearchQuery(event.target.value)}
+                    className="h-10 rounded-lg bg-card pl-9"
+                    placeholder="Buscar cliente"
+                    type="search"
+                  />
+                </div>
+              </div>
+
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[48rem] text-left text-sm">
+                  <thead className="border-b border-border/70 bg-muted/30 text-xs uppercase text-muted-foreground">
+                    <tr>
+                      <th className="w-72 px-4 py-3 font-semibold">Nome</th>
+                      <th className="px-4 py-3 font-semibold">Usuario</th>
+                      <th className="px-4 py-3 font-semibold">Senha</th>
+                      <th className="w-36 px-4 py-3 text-right font-semibold">Ação</th>
+                    </tr>
+                  </thead>
+                  <tbody className={cn(isLoadingContracts && "animate-pulse")}>
+                    {isLoadingContracts ? (
+                      Array.from({ length: 5 }).map((_, index) => (
+                        <tr key={`loading-login-${index}`} className="border-b border-border/50 last:border-0">
+                          <td className="px-4 py-4"><div className="h-4 w-44 rounded-full bg-muted" /></td>
+                          <td className="px-4 py-4"><div className="h-10 w-full rounded-lg bg-muted" /></td>
+                          <td className="px-4 py-4"><div className="h-10 w-full rounded-lg bg-muted" /></td>
+                          <td className="px-4 py-4"><div className="ml-auto h-10 w-24 rounded-lg bg-muted" /></td>
+                        </tr>
+                      ))
+                    ) : filteredContracts.map((contract) => {
+                      const draft = credentialDrafts[contract.id] ?? {
+                        username: contract.loginUsername ?? "",
+                        password: contract.loginPassword ?? "",
+                      }
+
+                      return (
+                        <tr key={contract.id} className="border-b border-border/50 last:border-0">
+                          <td className="whitespace-nowrap px-4 py-3 font-medium text-foreground">{contract.fullName}</td>
+                          <td className="px-4 py-3">
+                            <Input
+                              value={draft.username}
+                              onChange={(event) => updateCredentialDraft(contract.id, "username", event.target.value)}
+                              className="h-10 rounded-lg bg-card"
+                              placeholder="Usuario"
+                            />
+                          </td>
+                          <td className="px-4 py-3">
+                            <Input
+                              value={draft.password}
+                              onChange={(event) => updateCredentialDraft(contract.id, "password", event.target.value)}
+                              className="h-10 rounded-lg bg-card font-mono"
+                              placeholder="Senha"
+                              type="text"
+                            />
+                          </td>
+                          <td className="px-4 py-3 text-right">
+                            <Button
+                              type="button"
+                              className="h-10 rounded-lg bg-foreground px-4 text-background hover:bg-foreground/90"
+                              onClick={() => saveContractCredentials(contract)}
+                              disabled={savingCredentialId === contract.id}
+                            >
+                              {savingCredentialId === contract.id ? "Salvando..." : "Salvar"}
+                            </Button>
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+
+                {!isLoadingContracts && filteredContracts.length === 0 && (
+                  <div className="flex min-h-60 items-center justify-center p-8 text-center">
+                    <div>
+                      <p className="font-semibold text-foreground">Nenhum contrato encontrado</p>
+                      <p className="mt-1 text-sm text-muted-foreground">Cadastre um contrato para definir login e senha.</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </section>
             ) : activeSection === "plans" ? (
             <section>
               <form onSubmit={savePlans} className="rounded-lg border border-border/70 bg-[linear-gradient(135deg,oklch(0.99_0_0)_0%,oklch(0.97_0_0)_50%,oklch(0.94_0_0)_100%)] p-5 shadow-sm">

@@ -51,7 +51,7 @@ export function Navbar({ variant }: { variant?: "login" }) {
                   Como funciona
                 </a>
                 <a
-                  href="/login"
+                  href="/dashboard"
                   className="text-xs sm:text-sm text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
                 >
                   Area do Cliente

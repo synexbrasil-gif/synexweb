@@ -13,8 +13,8 @@ const steps = [
   },
   {
     number: "3",
-    title: "Comece a assistir",
-    description: "Seu acesso é liberado automaticamente. Aproveite os canais esportivos no seu dispositivo preferido."
+    title: "Assista pelo navegador",
+    description: "Seu acesso é liberado automaticamente. Abra o painel no navegador e acompanhe os canais esportivos online."
   }
 ]
 

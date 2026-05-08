@@ -1,9 +1,6 @@
 export const IPTV_SERVERS = [
-  "p2mult.xyz",
-  "mtxmegga.shop",
-  "megga.tv.br",
-  "dns.grupomg.shop:80",
-  "gpsrv.shop:80",
+  "ph1.fun",
+  "phspr.pro",
 ]
 
 export interface IPTVCredentials {

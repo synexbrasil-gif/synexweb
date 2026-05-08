@@ -62,16 +62,17 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
   return (
     <NotificationContext.Provider value={value}>
       {children}
-      <div className="fixed bottom-5 right-5 z-[100] flex w-[min(calc(100vw-2rem),24rem)] flex-col gap-3">
+      <div className="fixed bottom-6 right-6 z-[100] flex w-[min(calc(100vw-2rem),26rem)] flex-col gap-3">
         {notifications.map((notification) => (
           <div
             key={notification.id}
             className={cn(
-              "animate-notification-in rounded-xl border border-border/70 bg-[linear-gradient(135deg,oklch(0.99_0_0)_0%,oklch(0.96_0_0)_100%)] p-4 shadow-2xl shadow-foreground/10",
+              "animate-notification-in overflow-hidden rounded-lg border border-border/70 bg-background/95 shadow-2xl shadow-foreground/12 backdrop-blur-xl",
             )}
           >
-            <div className="min-w-0">
-              <p className="text-sm font-semibold text-foreground">{notification.title}</p>
+            <div className="h-px bg-[linear-gradient(90deg,transparent,oklch(0.48_0_0_/_0.45),transparent)]" />
+            <div className="min-w-0 px-4 py-3.5">
+              <p className="text-sm font-semibold leading-5 tracking-normal text-foreground">{notification.title}</p>
               {notification.description && (
                 <p className="mt-1 text-sm leading-5 text-muted-foreground">{notification.description}</p>
               )}

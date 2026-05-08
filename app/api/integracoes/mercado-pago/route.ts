@@ -10,7 +10,7 @@ type MercadoPagoIntegrationInput = {
 }
 
 function getDatabaseErrorMessage(error: unknown) {
-  if (error instanceof Error && error.message.includes("Configure MYSQL_URL")) {
+  if (error instanceof Error) {
     return error.message
   }
 

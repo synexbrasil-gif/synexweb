@@ -1,11 +1,18 @@
 import { NextResponse } from "next/server"
 
-import { createContract, deleteContract, listContracts, updateContract, type Contract } from "@/lib/contracts-db"
+import {
+  createContract,
+  deleteContract,
+  listContracts,
+  updateContract,
+  updateContractCredentials,
+  type Contract,
+} from "@/lib/contracts-db"
 
 type ContractInput = Omit<Contract, "id" | "createdAt">
 
 function getDatabaseErrorMessage(error: unknown) {
-  if (error instanceof Error && error.message.includes("Configure MYSQL_URL")) {
+  if (error instanceof Error) {
     return error.message
   }
 
@@ -50,17 +57,35 @@ export async function POST(request: Request) {
 }
 
 export async function PATCH(request: Request) {
-  const contractInput = (await request.json()) as Partial<ContractInput> & { id?: string }
+  const contractInput = (await request.json()) as Partial<ContractInput> & { id?: string; mode?: string }
 
   const id = contractInput.id?.trim()
-  const fullName = contractInput.fullName?.trim()
   const username = contractInput.username?.trim()
   const password = contractInput.password?.trim()
+  const fullName = contractInput.fullName?.trim()
   const activationDate = contractInput.activationDate?.trim()
   const plan = contractInput.plan?.trim()
 
   if (!id) {
     return NextResponse.json({ error: "Contrato nao informado." }, { status: 400 })
+  }
+
+  if (contractInput.mode === "credentials") {
+    if (!username || !password) {
+      return NextResponse.json({ error: "Informe usuario e senha." }, { status: 400 })
+    }
+
+    try {
+      const contract = await updateContractCredentials(id, { loginUsername: username, loginPassword: password })
+
+      if (!contract) {
+        return NextResponse.json({ error: "Contrato nao encontrado." }, { status: 404 })
+      }
+
+      return NextResponse.json({ contract })
+    } catch (error) {
+      return NextResponse.json({ error: getDatabaseErrorMessage(error) }, { status: 500 })
+    }
   }
 
   if (!fullName || !username || !password || !activationDate || !plan) {

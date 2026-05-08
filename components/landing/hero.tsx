@@ -27,7 +27,7 @@ export function Hero() {
             
             <FadeIn direction="up" delay={200} duration={600} loadOnScroll={false}>
               <p className="mt-6 text-lg text-muted-foreground max-w-lg text-pretty">
-                Assista futebol, lutas, automobilismo e muito mais em todos os seus dispositivos.
+                Assista futebol, lutas, automobilismo e muito mais direto pelo navegador.
               </p>
             </FadeIn>
             

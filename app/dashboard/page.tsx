@@ -31,8 +31,7 @@ import {
   RotateCcw,
   Captions,
   PictureInPicture2,
-  X,
-  AlertCircle
+  X
 } from "lucide-react"
 
 type MobileFullscreenVideo = HTMLVideoElement & {
@@ -55,6 +54,7 @@ type FullscreenDocument = Document & {
 
 type AccountInfo = {
   user_info?: {
+    auth?: string | number | boolean
     username?: string
     package?: string
     package_name?: string
@@ -70,21 +70,41 @@ type AccountInfo = {
   }
 }
 
-const CHANNEL_FILTER_TERMS = ["ppv", "pay per view", "pay-per-view", "disney", "paramount", "nba", "premiere", "amazon", "espn", "hbo", "cazetv", "caze tv", "goat", "ufc", "dazn", "ge tv", "ge fast", "globo"]
-const BLACK_LOGO_TERMS = ["ppv", "pay per view", "pay-per-view", "disney", "paramount", "nba", "esporte", "esportes", "goat", "ufc", "dazn"]
-const LARGE_LOGO_TERMS = ["disney", "paramount", "cazetv", "caze tv", "ufc"]
+function isValidAccountInfo(accountInfo: AccountInfo | null) {
+  const userInfo = accountInfo?.user_info
+  if (!userInfo) return false
+
+  const auth = userInfo.auth
+  if (auth !== undefined && auth !== true && String(auth).trim() !== "1") return false
+
+  const status = normalizeFilterText(String(userInfo.status ?? "active"))
+  return !["disabled", "banned", "expired"].includes(status)
+}
+
+const CHANNEL_FILTER_TERMS = ["ppv", "pay per view", "pay-per-view", "disney", "paramount", "nba", "combate", "premiere", "amazon", "espn", "hbo", "cazetv", "caze tv", "dazn", "sportv", "ge tv", "ge fast", "globo", "jogos do dia", "jogos de hoje"]
+const BLACK_LOGO_TERMS = ["ppv", "pay per view", "pay-per-view", "disney", "paramount", "nba", "combate", "dazn", "esporte", "esportes"]
+const LARGE_LOGO_TERMS = ["disney", "paramount", "dazn", "combate", "nba", "cazetv", "caze tv"]
 const PPV_CATEGORY_TERMS = ["ppv", "pay per view", "pay-per-view"]
 const SPORTS_CATEGORY_TERMS = ["esporte", "esportes"]
 const MOVIES_SERIES_CATEGORY_TERMS = ["filmes e series", "filmes series", "filmes", "series"]
-const HIDDEN_CATEGORY_TERMS = ["esporte", "esportes", "variedades", "noticias"]
-const SYNTHETIC_CATEGORY_TERMS = ["cazetv", "caze tv", "goat", "ufc", "dazn"]
+const HIDDEN_CATEGORY_TERMS = ["adulto", "adultos", "adult", "18+", "+18", "xxx", "porn", "porno", "erotico", "eroticos", "esporte", "esportes", "variedades", "noticias"]
+const SYNTHETIC_CATEGORY_TERMS = ["cazetv", "caze tv", "dazn"]
+const EXCLUDED_CHANNEL_TERMS = ["goat", "ufc"]
 const SYNEX_SPORTS_CATEGORY_ID = "__synex_esportes__"
 const SYNEX_HBO_MAX_CATEGORY_ID = "__synex_hbo_max__"
 const SYNEX_CAZETV_CATEGORY_ID = "__synex_cazetv__"
-const SYNEX_GOAT_CATEGORY_ID = "__synex_goat__"
-const SYNEX_UFC_CATEGORY_ID = "__synex_ufc__"
 const SYNEX_DAZN_CATEGORY_ID = "__synex_dazn__"
 const SYNEX_GLOBO_CATEGORY_ID = "__synex_globo__"
+const SYNEX_DISNEY_CATEGORY_ID = "__synex_disney__"
+const SYNEX_PARAMOUNT_CATEGORY_ID = "__synex_paramount__"
+const SYNEX_ESPN_CATEGORY_ID = "__synex_espn__"
+const SYNEX_PREMIERE_CATEGORY_ID = "__synex_premiere__"
+const SYNEX_AMAZON_CATEGORY_ID = "__synex_amazon__"
+const SYNEX_SPORTV_CATEGORY_ID = "__synex_sportv__"
+const SYNEX_COMBATE_CATEGORY_ID = "__synex_combate__"
+const SYNEX_NBA_CATEGORY_ID = "__synex_nba__"
+const SPORTS_AGENDA_CATEGORY_TERMS = ["jogos do dia", "jogos de hoje"]
+const SERVER_SPECIFIC_DASHBOARD_FIXES = new Set(["phspr.pro", "ph1.fun"])
 
 function normalizeFilterText(value: string) {
   return value
@@ -119,8 +139,16 @@ function isHiddenCategory(...values: string[]) {
   return matchesTerms(HIDDEN_CATEGORY_TERMS, ...values)
 }
 
+function isSportsAgendaCategory(...values: string[]) {
+  return matchesTerms(SPORTS_AGENDA_CATEGORY_TERMS, ...values)
+}
+
 function isSyntheticRequestedCategory(...values: string[]) {
   return matchesTerms(SYNTHETIC_CATEGORY_TERMS, ...values)
+}
+
+function isExcludedChannel(...values: string[]) {
+  return matchesTerms(EXCLUDED_CHANNEL_TERMS, ...values)
 }
 
 function getSportsMaxChannelNumber(...values: string[]) {
@@ -151,22 +179,69 @@ function getNumberedChannelMatch(name: string, pattern: RegExp, maxNumber: numbe
 function getRequestedChannelMapping(name: string, globoCategoryId: string) {
   const normalizedName = normalizeFilterText(name)
   const cazeTvNumber = getNumberedChannelMatch(name, /\bcaze\s*tv\b\D*0?([1-3])\b/, 3)
-  const goatNumber = getNumberedChannelMatch(name, /\bgoat\b\D*0?([1-3])\b/, 3)
   const daznNumber = getNumberedChannelMatch(name, /\bdazn\b\D*0?([1-3])\b/, 3)
   const geVariant = normalizedName.match(/\bge\s*(tv|fast)\b.*\b(fhd|hd|sd)\b/)
 
   if (cazeTvNumber) return { categoryId: SYNEX_CAZETV_CATEGORY_ID, categoryName: "CazeTV", channelName: `CazeTV ${cazeTvNumber}` }
-  if (goatNumber) return { categoryId: SYNEX_GOAT_CATEGORY_ID, categoryName: "GOAT", channelName: `Goat ${goatNumber}` }
   if (daznNumber) return { categoryId: SYNEX_DAZN_CATEGORY_ID, categoryName: "Dazn", channelName: `DAZN ${Number(daznNumber)}` }
-  if (/\bufc\b.*\bfhd\b/.test(normalizedName)) return { categoryId: SYNEX_UFC_CATEGORY_ID, categoryName: "UFC", channelName: "UFC FHD" }
-  if (/\bufc\b.*\bhd\b/.test(normalizedName)) return { categoryId: SYNEX_UFC_CATEGORY_ID, categoryName: "UFC", channelName: "UFC HD" }
-  if (/\bufc\b.*\bsd\b/.test(normalizedName)) return { categoryId: SYNEX_UFC_CATEGORY_ID, categoryName: "UFC", channelName: "UFC SD" }
   if (geVariant) {
     const serviceName = geVariant[1] === "fast" ? "GE Fast" : "GE TV"
     return { categoryId: globoCategoryId, categoryName: "Globo", channelName: `${serviceName} ${geVariant[2].toUpperCase()}` }
   }
+  if (matchesTerms(["premiere"], name)) return { categoryId: SYNEX_PREMIERE_CATEGORY_ID, categoryName: "Premiere", channelName: formatChannelNameFromRaw(name) }
+  if (matchesTerms(["combate"], name)) return { categoryId: SYNEX_COMBATE_CATEGORY_ID, categoryName: "Combate", channelName: formatChannelNameFromRaw(name) }
+  if (matchesTerms(["nba"], name)) return { categoryId: SYNEX_NBA_CATEGORY_ID, categoryName: "NBA", channelName: formatChannelNameFromRaw(name) }
 
   return null
+}
+
+function getCanonicalCategory(categoryName: string) {
+  if (matchesTerms(["combate"], categoryName) && !matchesTerms(["nba"], categoryName)) return { id: SYNEX_COMBATE_CATEGORY_ID, name: "Combate" }
+  if (matchesTerms(["nba"], categoryName) && !matchesTerms(["combate"], categoryName)) return { id: SYNEX_NBA_CATEGORY_ID, name: "NBA" }
+  if (matchesTerms(["hbo", "hbo max"], categoryName)) return { id: SYNEX_HBO_MAX_CATEGORY_ID, name: "HBO Max" }
+  if (matchesTerms(["globo"], categoryName)) return { id: SYNEX_GLOBO_CATEGORY_ID, name: "Globo" }
+  if (matchesTerms(["disney"], categoryName)) return { id: SYNEX_DISNEY_CATEGORY_ID, name: "Disney" }
+  if (matchesTerms(["paramount"], categoryName)) return { id: SYNEX_PARAMOUNT_CATEGORY_ID, name: "Paramount" }
+  if (matchesTerms(["espn"], categoryName)) return { id: SYNEX_ESPN_CATEGORY_ID, name: "ESPN" }
+  if (matchesTerms(["premiere"], categoryName)) return { id: SYNEX_PREMIERE_CATEGORY_ID, name: "Premiere" }
+  if (matchesTerms(["amazon", "prime"], categoryName)) return { id: SYNEX_AMAZON_CATEGORY_ID, name: "Amazon Prime" }
+  if (matchesTerms(["sportv"], categoryName)) return { id: SYNEX_SPORTV_CATEGORY_ID, name: "SporTV" }
+  return null
+}
+
+function formatChannelNameFromRaw(name: string) {
+  return name
+    .replace(/[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{FE0F}]/gu, "")
+    .replace(/^\s*\d+\s*\|\s*/u, "")
+    .replace(/^[^\p{L}\p{N}]+/gu, "")
+    .replace(/[^\p{L}\p{N}\s]+$/gu, "")
+    .replace(/\s{2,}/g, " ")
+    .trim()
+}
+
+function shouldPreferServerLogo(...values: string[]) {
+  return false
+}
+
+function shouldApplyServerSpecificDashboardFixes(server: string) {
+  return SERVER_SPECIFIC_DASHBOARD_FIXES.has(server.replace(/^https?:\/\//, "").split("/")[0].toLowerCase())
+}
+
+function getDisneyChannelNumber(...values: string[]) {
+  const haystack = normalizeFilterText(values.join(" "))
+  const match = haystack.match(/\bdisney\s*\+?\s*0?(\d{1,2})\b/)
+  return match ? String(Number(match[1])) : null
+}
+
+function isProbablyBlankStreamIcon(streamIcon?: string) {
+  if (!streamIcon) return true
+
+  const icon = streamIcon.toLowerCase()
+  return icon.includes("sem-logo") || icon.includes("no-logo") || icon.includes("nologo") || icon.includes("placeholder")
+}
+
+function isServerSpecificExcludedChannel(channelName: string) {
+  return matchesTerms(["sportynet", "sporty net", "x-sports", "x sports"], channelName)
 }
 
 function shouldUseBlackLogo(...values: string[]) {
@@ -208,6 +283,7 @@ export default function DashboardPage() {
   const [error, setError] = useState<string | null>(null)
   const [accountInfo, setAccountInfo] = useState<AccountInfo | null>(null)
   const [subscriberFullName, setSubscriberFullName] = useState("")
+  const [hasSubscriberContract, setHasSubscriberContract] = useState(false)
   const [accountMenuOpen, setAccountMenuOpen] = useState(false)
   const [loadingChannel, setLoadingChannel] = useState(false)
   const [panelOpen, setPanelOpen] = useState(false)
@@ -254,16 +330,73 @@ export default function DashboardPage() {
 
   // Check credentials on mount
   useEffect(() => {
-    const storedUsername = sessionStorage.getItem("iptv_username")
-    const storedPassword = sessionStorage.getItem("iptv_password")
+    let storedUsername = sessionStorage.getItem("iptv_username")
+    let storedPassword = sessionStorage.getItem("iptv_password")
+
+    if (!storedUsername || !storedPassword) {
+      const remembered = localStorage.getItem("synex_remember_session") === "true"
+      const rememberedUsername = localStorage.getItem("synex_login_username")
+      const rememberedPassword = localStorage.getItem("synex_login_password")
+
+      if (remembered && rememberedUsername && rememberedPassword) {
+        storedUsername = rememberedUsername
+        storedPassword = rememberedPassword
+      }
+    }
 
     if (!storedUsername || !storedPassword) {
       router.push("/login")
       return
     }
 
-    setUsername(storedUsername)
-    setPassword(storedPassword)
+    let cancelled = false
+
+    const resolvePlayerCredentials = async () => {
+      try {
+        const response = await fetch("/api/assinante", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ username: storedUsername, password: storedPassword }),
+        })
+        const data = await response.json()
+
+        if (cancelled) return
+
+        if (!data?.contractId) {
+          sessionStorage.removeItem("iptv_username")
+          sessionStorage.removeItem("iptv_password")
+          router.replace("/login")
+          return
+        }
+
+        if (String(data.iptvUsername ?? "").trim() === "0") {
+          setError("Seu contrato ainda não foi ativado. Entre em contato com o suporte para liberar o acesso.")
+          setIsLoading(false)
+          return
+        }
+
+        const playerUsername = data.iptvUsername || storedUsername
+        const playerPassword = data.iptvPassword || storedPassword
+
+        sessionStorage.setItem("iptv_username", playerUsername)
+        sessionStorage.setItem("iptv_password", playerPassword)
+        setUsername(playerUsername)
+        setPassword(playerPassword)
+      } catch {
+        if (!cancelled) {
+          setUsername(storedUsername)
+          setPassword(storedPassword)
+        }
+      }
+    }
+
+    resolvePlayerCredentials()
+
+    return () => {
+      cancelled = true
+    }
   }, [router])
 
   useEffect(() => {
@@ -283,13 +416,15 @@ export default function DashboardPage() {
 
         if (!response.ok) return
 
-        const data = (await response.json()) as { fullName?: string | null }
+        const data = (await response.json()) as { contractId?: string | null; fullName?: string | null }
         if (!cancelled) {
           setSubscriberFullName(data.fullName?.trim() ?? "")
+          setHasSubscriberContract(Boolean(data.contractId?.trim()))
         }
       } catch {
         if (!cancelled) {
           setSubscriberFullName("")
+          setHasSubscriberContract(false)
         }
       }
     }
@@ -366,6 +501,16 @@ export default function DashboardPage() {
 
       const loadServerData = async (server: string) => {
         const startedAt = performance.now()
+        const accountResponse = await fetchWithTimeout(buildAccountApiUrl(server, username, password), 10000)
+
+        if (!accountResponse.ok) return null
+
+        const accountData = await accountResponse.json()
+        const serverAccountInfo =
+          accountData && typeof accountData === "object" ? (accountData as AccountInfo) : null
+
+        if (!isValidAccountInfo(serverAccountInfo)) return null
+
         const response = await fetchWithTimeout(buildApiUrl(server, username, password, "get_live_categories"), 10000)
 
         if (!response.ok) return null
@@ -375,67 +520,76 @@ export default function DashboardPage() {
 
         const serverCategories = data as Category[]
 
-        const [accountResult, channelsResult] = await Promise.allSettled([
-          fetchWithTimeout(buildAccountApiUrl(server, username, password), 10000),
+        const channelsResult = await Promise.allSettled([
           fetchWithTimeout(buildApiUrl(server, username, password, "get_live_streams"), 15000),
         ])
 
-        let serverAccountInfo: AccountInfo | null = null
-        if (accountResult.status === "fulfilled" && accountResult.value.ok) {
-          const accountData = await accountResult.value.json()
-          if (accountData && typeof accountData === "object") {
-            serverAccountInfo = accountData
-          }
-        }
-
         let serverChannels: Channel[] = []
-        if (channelsResult.status === "fulfilled" && channelsResult.value.ok) {
-          const channelsData = await channelsResult.value.json()
+        const channelsResponse = channelsResult[0]
+        if (channelsResponse.status === "fulfilled" && channelsResponse.value.ok) {
+          const channelsData = await channelsResponse.value.json()
           serverChannels = Array.isArray(channelsData) ? channelsData : []
         }
 
         const categoryById = new Map(serverCategories.map((cat) => [cat.category_id, cat.category_name]))
         const sportsCategory = serverCategories.find((cat) => isSportsCategory(cat.category_name))
         const sportsCategoryId = sportsCategory?.category_id ?? SYNEX_SPORTS_CATEGORY_ID
-        const hboMaxCategory = serverCategories.find((cat) => matchesTerms(["hbo", "hbo max"], cat.category_name))
-        const hboMaxCategoryId = hboMaxCategory?.category_id ?? SYNEX_HBO_MAX_CATEGORY_ID
-        const globoCategory = serverCategories.find((cat) => matchesTerms(["globo"], cat.category_name))
-        const globoCategoryId = globoCategory?.category_id ?? SYNEX_GLOBO_CATEGORY_ID
+        const hboMaxCategoryId = SYNEX_HBO_MAX_CATEGORY_ID
+        const globoCategoryId = SYNEX_GLOBO_CATEGORY_ID
         const ppvCategoryIds = new Set(
           serverCategories
             .filter((cat) => isPpvCategory(cat.category_name))
             .map((cat) => cat.category_id),
         )
         const allowedCategoryIds = new Set<string>()
+        const serverSpecificFixes = shouldApplyServerSpecificDashboardFixes(server)
 
         for (const category of serverCategories) {
           if (isMoviesSeriesCategory(category.category_name)) continue
           if (isHiddenCategory(category.category_name)) continue
           if (isPpvCategory(category.category_name)) continue
+          if (isExcludedChannel(category.category_name)) continue
           if (isSyntheticRequestedCategory(category.category_name)) continue
 
-          if (matchesChannelFilter(category.category_name)) {
+          const canonicalCategory = getCanonicalCategory(category.category_name)
+
+          if (canonicalCategory) {
+            allowedCategoryIds.add(canonicalCategory.id)
+          } else if (matchesTerms(["sportv"], category.category_name)) {
+            allowedCategoryIds.add(SYNEX_SPORTV_CATEGORY_ID)
+          } else if (matchesChannelFilter(category.category_name)) {
             allowedCategoryIds.add(category.category_id)
           }
         }
 
         const filteredServerChannels = serverChannels.flatMap((channel) => {
           const categoryName = categoryById.get(channel.category_id) ?? ""
+          if (serverSpecificFixes && isServerSpecificExcludedChannel(channel.name)) return []
+          if (isExcludedChannel(channel.name, categoryName)) return []
+
           if (isMoviesSeriesCategory(categoryName)) return []
+          const isSportvChannel = matchesTerms(["sportv"], channel.name, categoryName)
+          if (isHiddenCategory(categoryName) && !isSportvChannel) return []
 
           const isPpvChannel = ppvCategoryIds.has(channel.category_id) || isPpvCategory(channel.name, categoryName)
           const sportsMaxChannelNumber = getSportsMaxChannelNumber(channel.name)
           const isSportsMaxChannel = Boolean(sportsMaxChannelNumber)
           const requestedChannelMapping = getRequestedChannelMapping(channel.name, globoCategoryId)
+          const canonicalCategory = getCanonicalCategory(categoryName)
           const normalizedChannel = requestedChannelMapping
             ? { ...channel, category_id: requestedChannelMapping.categoryId, name: requestedChannelMapping.channelName }
+            : isSportvChannel
+              ? { ...channel, category_id: SYNEX_SPORTV_CATEGORY_ID }
             : isSportsMaxChannel
             ? { ...channel, category_id: hboMaxCategoryId, name: formatHboMaxChannelName(sportsMaxChannelNumber as string) }
             : isPpvChannel
               ? { ...channel, category_id: sportsCategoryId }
+              : canonicalCategory
+                ? { ...channel, category_id: canonicalCategory.id }
               : channel
-          const normalizedCategoryName = requestedChannelMapping?.categoryName ?? (isSportsMaxChannel ? "HBO Max" : isPpvChannel ? "Esportes" : categoryName)
-          if (isHiddenCategory(normalizedCategoryName)) return []
+          const normalizedCategoryName = requestedChannelMapping?.categoryName ?? (isSportvChannel ? "SporTV" : isSportsMaxChannel ? "HBO Max" : isPpvChannel ? "Esportes" : canonicalCategory?.name ?? categoryName)
+          if (isHiddenCategory(normalizedCategoryName) && !isSportvChannel) return []
+          if (isExcludedChannel(normalizedChannel.name, normalizedCategoryName)) return []
 
           const isAllowed = matchesChannelFilter(normalizedChannel.name, normalizedCategoryName)
 
@@ -446,34 +600,52 @@ export default function DashboardPage() {
           return isAllowed ? [normalizedChannel] : []
         })
 
+        const bestDisneyChannelByNumber = new Map<string, { channel: Channel; score: number }>()
+
+        if (serverSpecificFixes) {
+          for (const channel of filteredServerChannels) {
+            const categoryName = categoryById.get(channel.category_id) ?? ""
+            const disneyNumber = getDisneyChannelNumber(channel.name, categoryName)
+            if (!disneyNumber) continue
+
+            const score = isProbablyBlankStreamIcon(channel.stream_icon) ? 0 : 1
+            const current = bestDisneyChannelByNumber.get(disneyNumber)
+            if (!current || score > current.score) {
+              bestDisneyChannelByNumber.set(disneyNumber, { channel, score })
+            }
+          }
+        }
+
+        const dedupedServerChannels = serverSpecificFixes
+          ? filteredServerChannels.filter((channel) => {
+              const categoryName = categoryById.get(channel.category_id) ?? ""
+              const disneyNumber = getDisneyChannelNumber(channel.name, categoryName)
+              if (!disneyNumber) return true
+              return bestDisneyChannelByNumber.get(disneyNumber)?.channel === channel
+            })
+          : filteredServerChannels
+
         const filteredCategories = serverCategories.filter((cat) => {
           if (isMoviesSeriesCategory(cat.category_name)) return false
           if (isHiddenCategory(cat.category_name)) return false
           if (isPpvCategory(cat.category_name)) return false
           if (isSyntheticRequestedCategory(cat.category_name)) return false
+          if (getCanonicalCategory(cat.category_name)) return false
           return allowedCategoryIds.has(cat.category_id)
         })
 
-        if (!hboMaxCategory && allowedCategoryIds.has(SYNEX_HBO_MAX_CATEGORY_ID)) {
-          filteredCategories.push({
-            category_id: SYNEX_HBO_MAX_CATEGORY_ID,
-            category_name: "HBO Max",
-            parent_id: 0,
-          })
-        }
-
-        if (!globoCategory && allowedCategoryIds.has(SYNEX_GLOBO_CATEGORY_ID)) {
-          filteredCategories.push({
-            category_id: SYNEX_GLOBO_CATEGORY_ID,
-            category_name: "Globo",
-            parent_id: 0,
-          })
-        }
-
         const syntheticCategories: Category[] = [
+          { category_id: SYNEX_HBO_MAX_CATEGORY_ID, category_name: "HBO Max", parent_id: 0 },
+          { category_id: SYNEX_GLOBO_CATEGORY_ID, category_name: "Globo", parent_id: 0 },
+          { category_id: SYNEX_DISNEY_CATEGORY_ID, category_name: "Disney", parent_id: 0 },
+          { category_id: SYNEX_PARAMOUNT_CATEGORY_ID, category_name: "Paramount", parent_id: 0 },
+          { category_id: SYNEX_ESPN_CATEGORY_ID, category_name: "ESPN", parent_id: 0 },
+          { category_id: SYNEX_PREMIERE_CATEGORY_ID, category_name: "Premiere", parent_id: 0 },
+          { category_id: SYNEX_AMAZON_CATEGORY_ID, category_name: "Amazon Prime", parent_id: 0 },
+          { category_id: SYNEX_SPORTV_CATEGORY_ID, category_name: "SporTV", parent_id: 0 },
+          { category_id: SYNEX_COMBATE_CATEGORY_ID, category_name: "Combate", parent_id: 0 },
+          { category_id: SYNEX_NBA_CATEGORY_ID, category_name: "NBA", parent_id: 0 },
           { category_id: SYNEX_CAZETV_CATEGORY_ID, category_name: "CazeTV", parent_id: 0 },
-          { category_id: SYNEX_GOAT_CATEGORY_ID, category_name: "GOAT", parent_id: 0 },
-          { category_id: SYNEX_UFC_CATEGORY_ID, category_name: "UFC", parent_id: 0 },
           { category_id: SYNEX_DAZN_CATEGORY_ID, category_name: "Dazn", parent_id: 0 },
         ]
 
@@ -483,19 +655,32 @@ export default function DashboardPage() {
           }
         }
 
-        filteredCategories.sort((a, b) =>
+        const channelCategoryIds = new Set(dedupedServerChannels.map((channel) => channel.category_id))
+        const visibleCategories = filteredCategories
+          .filter((category) => channelCategoryIds.has(category.category_id))
+          .sort((firstCategory, secondCategory) => {
+            const firstIsSportsAgenda = isSportsAgendaCategory(firstCategory.category_name)
+            const secondIsSportsAgenda = isSportsAgendaCategory(secondCategory.category_name)
+
+            if (firstIsSportsAgenda && !secondIsSportsAgenda) return -1
+            if (!firstIsSportsAgenda && secondIsSportsAgenda) return 1
+
+            return 0
+          })
+
+        visibleCategories.sort((a, b) =>
           formatCategoryName(a.category_name).localeCompare(formatCategoryName(b.category_name), "pt-BR", {
             sensitivity: "base",
           }),
         )
 
-        if (filteredCategories.length === 0 || filteredServerChannels.length === 0) return null
+        if (visibleCategories.length === 0 || dedupedServerChannels.length === 0) return null
 
         return {
           server,
           accountInfo: serverAccountInfo,
-          categories: filteredCategories,
-          channels: filteredServerChannels,
+          categories: visibleCategories,
+          channels: dedupedServerChannels,
           latencyMs: performance.now() - startedAt,
         }
       }
@@ -579,6 +764,14 @@ export default function DashboardPage() {
     return count
   }, [channels, filteredCategoryIds])
 
+  const sportsAgendaCategory = useMemo(() => {
+    return categories.find((category) => isSportsAgendaCategory(category.category_name)) ?? null
+  }, [categories])
+
+  const sidebarCategories = useMemo(() => {
+    return categories.filter((category) => !isSportsAgendaCategory(category.category_name))
+  }, [categories])
+
   const filteredChannels = useMemo(() => {
     let filtered = channels.filter((ch) => filteredCategoryIds.has(ch.category_id))
 
@@ -637,6 +830,18 @@ export default function DashboardPage() {
     showPlayerControls()
   }, [selectedChannel, isPlaying, showPlayerControls])
 
+  const showPlayerNotice = useCallback((message: string) => {
+    if (playerNoticeTimeoutRef.current) {
+      clearTimeout(playerNoticeTimeoutRef.current)
+    }
+
+    setPlayerNotice(message)
+    playerNoticeTimeoutRef.current = setTimeout(() => {
+      setPlayerNotice(null)
+      playerNoticeTimeoutRef.current = null
+    }, 3500)
+  }, [])
+
   useEffect(() => {
     const handleFullscreenChange = () => {
       setIsFullscreen(!!document.fullscreenElement)
@@ -680,6 +885,8 @@ export default function DashboardPage() {
     let nativeLoadHandler: (() => void) | null = null
     let nativeErrorHandler: (() => void) | null = null
     let watchPlaybackHealth: (() => void) | null = null
+    let channelLoadTimeout: NodeJS.Timeout | null = null
+    let fatalRecoveryAttempts = 0
 
     if (hlsRef.current) {
       hlsRef.current.destroy()
@@ -693,6 +900,8 @@ export default function DashboardPage() {
 
     playbackRecoveryAttemptsRef.current = 0
     lastPlaybackPositionRef.current = 0
+    setLoadingChannel(true)
+    setError(null)
     video.pause()
     video.removeAttribute('src')
     video.load()
@@ -700,14 +909,38 @@ export default function DashboardPage() {
     const streamUrl = selectedStreamUrl
     if (!streamUrl) return
 
+    const failChannelLoad = (message = "Este canal demorou demais para carregar. Tente novamente.") => {
+      if (disposed) return
+      if (channelLoadTimeout) {
+        clearTimeout(channelLoadTimeout)
+        channelLoadTimeout = null
+      }
+      if (hlsRef.current) {
+        hlsRef.current.destroy()
+        hlsRef.current = null
+      }
+      setError(message)
+      setIsPlaying(false)
+      setLoadingChannel(false)
+    }
+
+    channelLoadTimeout = setTimeout(() => {
+      failChannelLoad()
+    }, 20000)
+
     const tryPlay = async () => {
       try {
         await video.play()
         if (disposed) return
+        if (channelLoadTimeout) {
+          clearTimeout(channelLoadTimeout)
+          channelLoadTimeout = null
+        }
         setIsPlaying(true)
         setLoadingChannel(false)
       } catch (playError) {
         if (disposed) return
+        if (playError instanceof DOMException && playError.name === "AbortError") return
         console.log('[v0] Erro ao dar play:', playError)
         setIsPlaying(false)
         setLoadingChannel(false)
@@ -794,16 +1027,25 @@ export default function DashboardPage() {
         if (data.fatal) {
           switch (data.type) {
             case Hls.ErrorTypes.NETWORK_ERROR:
-              setLoadingChannel(true)
-              hls.startLoad()
+              fatalRecoveryAttempts += 1
+              if (fatalRecoveryAttempts > 3) {
+                failChannelLoad("Não foi possível carregar este canal agora.")
+              } else {
+                setLoadingChannel(true)
+                hls.startLoad()
+              }
               break
             case Hls.ErrorTypes.MEDIA_ERROR:
-              setLoadingChannel(true)
-              hls.recoverMediaError()
+              fatalRecoveryAttempts += 1
+              if (fatalRecoveryAttempts > 3) {
+                failChannelLoad("Não foi possível reproduzir este canal agora.")
+              } else {
+                setLoadingChannel(true)
+                hls.recoverMediaError()
+              }
               break
             default:
-              setError("Erro ao carregar o canal.")
-              setLoadingChannel(false)
+              failChannelLoad("Erro ao carregar o canal.")
               hls.destroy()
               break
           }
@@ -825,8 +1067,7 @@ export default function DashboardPage() {
       
       nativeErrorHandler = () => {
         if (disposed) return
-        setError("Erro ao carregar o canal.")
-        setLoadingChannel(false)
+        failChannelLoad("Erro ao carregar o canal.")
       }
 
       video.addEventListener("loadedmetadata", nativeLoadHandler)
@@ -849,6 +1090,10 @@ export default function DashboardPage() {
       if (playbackRecoveryTimerRef.current) {
         clearTimeout(playbackRecoveryTimerRef.current)
         playbackRecoveryTimerRef.current = null
+      }
+      if (channelLoadTimeout) {
+        clearTimeout(channelLoadTimeout)
+        channelLoadTimeout = null
       }
       if (hlsRef.current) {
         hlsRef.current.destroy()
@@ -921,22 +1166,13 @@ export default function DashboardPage() {
     }
   }
 
-  const showPlayerNotice = useCallback((message: string) => {
-    if (playerNoticeTimeoutRef.current) {
-      clearTimeout(playerNoticeTimeoutRef.current)
-    }
-
-    setPlayerNotice(message)
-    playerNoticeTimeoutRef.current = setTimeout(() => {
-      setPlayerNotice(null)
-      playerNoticeTimeoutRef.current = null
-    }, 3500)
-  }, [])
-
   const handleLogout = () => {
     stopPlayback()
     sessionStorage.removeItem("iptv_username")
     sessionStorage.removeItem("iptv_password")
+    localStorage.removeItem("synex_remember_session")
+    localStorage.removeItem("synex_login_username")
+    localStorage.removeItem("synex_login_password")
     setAccountMenuOpen(false)
     router.replace("/")
   }
@@ -1014,27 +1250,29 @@ export default function DashboardPage() {
       .toLowerCase()
     if (formatted.includes("sbt")) return "SBT"
     if (formatted.includes("cazetv") || formatted.includes("caze tv")) return "CazeTV"
-    if (formatted.includes("goat")) return "GOAT"
-    if (formatted.includes("ufc")) return "UFC"
+    if (formatted.includes("nba")) return "NBA"
+    if (formatted.includes("combate")) return "Combate"
     if (formatted.includes("dazn")) return "Dazn"
+    if (formatted.includes("paramount")) return "Paramount"
     if (formatted.includes("amazon")) return "Amazon Prime"
     if (formatted.includes("hbo")) return "HBO Max"
     if (formatted.includes("espn")) return "ESPN"
     if (formatted.includes("premiere")) return "Premiere"
     if (formatted.includes("sportv")) return "SporTV"
     if (formatted.includes("globo")) return "Globo"
+    if (formatted.includes("jogos do dia") || formatted.includes("jogos de hoje")) return "Agenda Esportiva"
     if (!formatted) return "Categoria"
     return formatted.charAt(0).toUpperCase() + formatted.slice(1)
   }
 
   function formatChannelName(name: string) {
-    return name
-      .replace(/[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{FE0F}]/gu, "")
-      .replace(/^\s*\d+\s*\|\s*/u, "")
-      .replace(/^[^\p{L}\p{N}]+/gu, "")
-      .replace(/[^\p{L}\p{N}\s]+$/gu, "")
-      .replace(/\s{2,}/g, " ")
-      .trim()
+    const formattedName = formatChannelNameFromRaw(name)
+
+    if (matchesTerms(["premiere"], formattedName) && matchesTerms(["mosaico"], formattedName) && matchesTerms(["multi telas", "multitelas"], formattedName)) {
+      return "Premiere Mosaico"
+    }
+
+    return formattedName
   }
 
   function getChannelLogoSrc(channel: Channel, formattedName: string) {
@@ -1045,8 +1283,13 @@ export default function DashboardPage() {
     if (haystack.includes("hbo")) return "https://i.ibb.co/twR0Q0hd/hbo.png"
     if (haystack.includes("globo")) return "https://i.ibb.co/Gv4k5Gcr/globo.png"
     if (haystack.includes("sbt")) return "https://i.ibb.co/1J8nYkpT/sbt.png"
+    if (haystack.includes("combate")) return "https://logospng.org/download/canal-combate/logo-canal-combate-768.png"
+    if (haystack.includes("dazn")) return "https://images.seeklogo.com/logo-png/39/3/dazn-logo-png_seeklogo-399335.png"
+    if (haystack.includes("nba")) return "https://static.vecteezy.com/system/resources/previews/027/127/476/non_2x/nba-logo-nba-icon-transparent-free-png.png"
     if (haystack.includes("espn")) return "https://i.ibb.co/m5WK8KRQ/espn.png"
     if (haystack.includes("premiere")) return "https://i.ibb.co/xt7TP3Lx/premiere.png"
+    if (haystack.includes("disney")) return "https://upload.wikimedia.org/wikipedia/commons/3/3e/Disney%2B_logo.svg"
+    if (haystack.includes("paramount")) return "https://cdn.worldvectorlogo.com/logos/paramount-big-p-.svg"
     if (haystack.includes("sportv")) return "https://i.ibb.co/RpNxzrr5/sportv.png"
     if (haystack.includes("amazon") || haystack.includes("prime")) return "https://i.ibb.co/svCH18T2/prime.png"
 
@@ -1055,6 +1298,26 @@ export default function DashboardPage() {
 
   function getChannelImageClass(channel: Channel, formattedName: string, fallbackClass: string) {
     const categoryName = categoryNameById.get(channel.category_id) ?? ""
+    if (matchesTerms(["paramount"], channel.name, formattedName, categoryName)) {
+      return "p-3 brightness-0"
+    }
+
+    if (matchesTerms(["dazn"], channel.name, formattedName, categoryName)) {
+      return "p-3 brightness-0"
+    }
+
+    if (matchesTerms(["combate", "nba"], channel.name, formattedName, categoryName)) {
+      return "p-0 brightness-0"
+    }
+
+    if (matchesTerms(["disney"], channel.name, formattedName, categoryName)) {
+      return "p-5 brightness-0"
+    }
+
+    if (matchesTerms(["cazetv", "caze tv", "sportv", "amazon", "prime"], channel.name, formattedName, categoryName)) {
+      return "p-0"
+    }
+
     const imageClass = shouldUseLargeLogo(channel.name, formattedName, categoryName) ? "p-3" : fallbackClass
 
     if (shouldUseBlackLogo(channel.name, formattedName, categoryName)) {
@@ -1065,15 +1328,7 @@ export default function DashboardPage() {
   }
 
   function getChannelLogoClass(logoSrc: string) {
-    if (logoSrc.includes("esporte")) {
-      return "p-2"
-    }
-
-    if (logoSrc.includes("sportv") || logoSrc.includes("prime")) {
-      return "p-4"
-    }
-
-    return "p-8"
+    return "p-3"
   }
 
   function getStreamIconSrc(streamIcon?: string) {
@@ -1159,22 +1414,29 @@ export default function DashboardPage() {
         "fixed left-0 right-0 top-0 z-50 h-16 transition-colors duration-300",
         panelOpen ? "bg-[linear-gradient(115deg,oklch(0.93_0_0)_0%,oklch(0.98_0_0)_58%,oklch(0.92_0_0)_100%)] lg:bg-transparent" : "bg-transparent"
       )}>
-        <div className="flex h-full items-center gap-3 px-4 lg:px-6">
-          <div ref={accountMenuRef} className="relative">
-            <Button
+        <div className="flex h-full items-center justify-between gap-3 px-4 lg:px-6">
+          <div ref={accountMenuRef} className="relative flex shrink-0 items-center gap-3">
+            <Button variant="ghost" size="icon" className="rounded-xl lg:hidden" onClick={() => setPanelOpen(true)}>
+              <Menu className="h-5 w-5" />
+            </Button>
+            <button
               type="button"
-              variant="ghost"
-              size="icon"
-              className={cn("rounded-xl hover:bg-secondary", accountMenuOpen && "bg-secondary")}
+              className={cn(
+                "flex items-center gap-3 rounded-xl px-2 py-1.5 text-left transition-colors hover:bg-secondary",
+                accountMenuOpen && "bg-secondary",
+              )}
               aria-label="Abrir dados da conta"
               aria-expanded={accountMenuOpen}
               onClick={() => setAccountMenuOpen((open) => !open)}
             >
-              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10">
-                <User className="h-4 w-4 text-primary" />
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-foreground/10 text-foreground">
+                <User className="h-5 w-5" />
               </div>
-            </Button>
-
+              <div className="flex flex-col justify-center">
+                <p className="text-sm font-semibold text-foreground">Synex Brasil</p>
+                <p className="text-xs text-muted-foreground">Reprodução de conteúdo</p>
+              </div>
+            </button>
             {accountMenuOpen && (
               <div
                 className="absolute left-0 top-14 z-[60] w-[min(20rem,calc(100vw-2rem))] origin-top-left overflow-hidden rounded-2xl border border-border/60 bg-background/95 shadow-2xl shadow-foreground/15 backdrop-blur-xl"
@@ -1214,6 +1476,18 @@ export default function DashboardPage() {
                     <p className="mt-1 text-sm font-semibold text-card-foreground">{expirationDate}</p>
                   </div>
 
+                  {hasSubscriberContract && (
+                    <Button
+                      asChild
+                      variant="outline"
+                      className="h-11 w-full rounded-xl border-border/70 bg-background hover:bg-black hover:text-white"
+                    >
+                      <a href="/contrato">
+                        Meu contrato
+                      </a>
+                    </Button>
+                  )}
+
                   <Button
                     type="button"
                     variant="outline"
@@ -1225,12 +1499,6 @@ export default function DashboardPage() {
                 </div>
               </div>
             )}
-          </div>
-
-          <div className="flex shrink-0 items-center">
-            <Button variant="ghost" size="icon" className="rounded-xl lg:hidden" onClick={() => setPanelOpen(true)}>
-              <Menu className="h-5 w-5" />
-            </Button>
           </div>
         </div>
       </header>
@@ -1285,12 +1553,35 @@ export default function DashboardPage() {
               </span>
             </button>
 
+            {sportsAgendaCategory && (
+              <button
+                onClick={() => {
+                  setSelectedCategory(sportsAgendaCategory)
+                  setPanelOpen(false)
+                }}
+                className={cn(
+                  "mt-2 flex w-full items-center justify-between gap-3 rounded-xl px-3 py-3 text-sm font-medium transition-all duration-200",
+                  selectedCategory?.category_id === sportsAgendaCategory.category_id
+                    ? "bg-[linear-gradient(135deg,oklch(0.99_0_0)_0%,oklch(0.94_0_0)_58%,oklch(0.90_0_0)_100%)] text-sidebar-accent-foreground shadow-md shadow-foreground/5"
+                    : "text-sidebar-foreground/70 hover:bg-white/35 hover:text-sidebar-foreground hover:shadow-sm"
+                )}
+              >
+                <span className="truncate">{formatCategoryName(sportsAgendaCategory.category_name)}</span>
+                <span className={cn(
+                  "rounded-full px-2 py-0.5 text-[10px] font-semibold",
+                  selectedCategory?.category_id === sportsAgendaCategory.category_id ? "bg-foreground/10 text-foreground" : "bg-foreground/5 text-muted-foreground"
+                )}>
+                  {categoryChannelCountById.get(sportsAgendaCategory.category_id) ?? 0}
+                </span>
+              </button>
+            )}
+
             <div className="px-3 py-2">
               <div className="h-px bg-gradient-to-r from-transparent via-sidebar-border to-transparent" />
             </div>
 
             <div className="min-h-0 flex-1 space-y-2 overflow-y-auto overscroll-contain pr-1">
-              {categories.map((cat) => {
+              {sidebarCategories.map((cat) => {
                 const isActive = selectedCategory?.category_id === cat.category_id
 
                 return (
@@ -1372,16 +1663,11 @@ export default function DashboardPage() {
               )}
 
               {error && selectedChannel && (
-                <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 bg-black/80 p-6 text-center backdrop-blur-sm">
-                  <AlertCircle className="h-10 w-10 text-white" />
+                <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-black/80 p-6 text-center backdrop-blur-sm">
                   <div>
                     <h3 className="text-lg font-semibold text-white">Stream indisponivel</h3>
-                    <p className="mt-1 text-sm text-white/60">{error}</p>
+                    <p className="mt-1 text-sm text-white/60">Este canal demorou demais para carregar.</p>
                   </div>
-                  <Button variant="outline" size="sm" className="gap-2 rounded-full border-white/20 bg-white text-black hover:bg-white/90" onClick={(e) => { e.stopPropagation(); reloadCurrentChannel() }}>
-                    <RefreshCw className="h-4 w-4" />
-                    Tentar novamente
-                  </Button>
                 </div>
               )}
 
@@ -1483,8 +1769,10 @@ export default function DashboardPage() {
                   {filteredChannels.map((channel) => {
                     const isActive = selectedChannel?.stream_id === channel.stream_id
                     const channelName = formatChannelName(channel.name)
-                    const logoSrc = getChannelLogoSrc(channel, channelName)
                     const streamIconSrc = getStreamIconSrc(channel.stream_icon)
+                    const categoryName = categoryNameById.get(channel.category_id) ?? ""
+                    const preferServerLogo = Boolean(streamIconSrc) && shouldPreferServerLogo(channel.name, channelName, categoryName)
+                    const logoSrc = preferServerLogo ? "" : getChannelLogoSrc(channel, channelName)
                     const logoClass = logoSrc ? getChannelImageClass(channel, channelName, getChannelLogoClass(logoSrc)) : ""
                     const streamIconClass = getChannelImageClass(channel, channelName, "p-8")
 

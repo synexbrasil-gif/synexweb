@@ -6,8 +6,13 @@ import { HowItWorks } from "@/components/landing/how-it-works"
 import { FaqSection } from "@/components/landing/faq-section"
 import { FadeIn } from "@/components/fade-in"
 import { ClearLoginReturnFlag } from "@/components/clear-login-return-flag"
+import { listPlans } from "@/lib/contracts-db"
 
-export default function Home() {
+export const dynamic = "force-dynamic"
+
+export default async function Home() {
+  const plans = await listPlans()
+
   return (
     <main className="min-h-screen relative overflow-x-hidden">
       {/* Background gradient uniforme */}
@@ -29,7 +34,7 @@ export default function Home() {
           <Benefits />
         </FadeIn>
         <FadeIn delay={100}>
-          <Pricing />
+          <Pricing initialPlans={plans} />
         </FadeIn>
         <FadeIn delay={100}>
           <HowItWorks />

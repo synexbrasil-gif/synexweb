@@ -18,9 +18,6 @@ export default async function PedidoPage({ params }: PedidoPageProps) {
     redirect("/checkout")
   }
 
-  const credentialsMessage = `*${contract.fullName}*\nMeu contrato foi ativado, e desejo solicitar meu acesso.`
-  const credentialsUrl = `https://wa.me/212693974294?text=${encodeURIComponent(credentialsMessage)}`
-
   return (
     <main className="relative min-h-screen overflow-hidden bg-[linear-gradient(115deg,oklch(0.93_0_0)_0%,oklch(0.98_0_0)_42%,oklch(0.91_0_0)_100%)] text-foreground">
       <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(115deg,oklch(0.93_0_0)_0%,oklch(0.98_0_0)_42%,oklch(0.91_0_0)_100%)]" />
@@ -59,9 +56,7 @@ export default async function PedidoPage({ params }: PedidoPageProps) {
 
           <div className="mt-7 flex justify-center">
             <Button asChild className="h-12 rounded-xl bg-foreground px-10 text-base text-background hover:bg-foreground/90">
-              <a href={credentialsUrl} target="_blank" rel="noopener noreferrer">
-                Ver credenciais
-              </a>
+              <a href={`/pedido/${encodeURIComponent(paymentId)}/login`}>Ativar credenciais</a>
             </Button>
           </div>
         </div>

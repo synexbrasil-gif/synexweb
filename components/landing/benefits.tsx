@@ -16,8 +16,8 @@ const benefits = [
   },
   {
     number: "04",
-    title: "Assista onde quiser",
-    description: "Use em Smart TV, celular, tablet, computador e outros dispositivos conectados."
+    title: "Player no navegador",
+    description: "Acesse pelo navegador do computador, celular, tablet ou Smart TV. O player funciona pelo site, sem app dedicado."
   }
 ]
 

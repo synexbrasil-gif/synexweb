@@ -7,15 +7,15 @@ import { cn } from "@/lib/utils"
 const faqs = [
   {
     question: "O que é a Synex Brasil?",
-    answer: "Synex Brasil é uma plataforma focada em canais esportivos ao vivo, com acesso pela internet e compatibilidade com diversos dispositivos."
+    answer: "Synex Brasil é uma plataforma focada em canais esportivos ao vivo, com acesso pela internet e player pelo navegador."
   },
   {
     question: "Como faço para assinar?",
     answer: "Basta escolher um plano, realizar o pagamento e o acesso é liberado imediatamente. Você pode testar grátis antes de assinar."
   },
   {
-    question: "Quais dispositivos são compatíveis?",
-    answer: "Você pode assistir em Smart TVs, celulares, computadores, TV Box, tablets e outros dispositivos com acesso à internet."
+    question: "Onde posso assistir?",
+    answer: "Por enquanto, o player funciona pelo navegador. Você pode acessar pelo computador, celular, tablet ou Smart TV com navegador atualizado."
   },
   {
     question: "O acesso é imediato após o pagamento?",
@@ -27,7 +27,7 @@ const faqs = [
   },
   {
     question: "O serviço funciona em qualquer lugar?",
-    answer: "Sim, você pode acessar de qualquer lugar, basta ter uma conexão estável com a internet."
+    answer: "Sim, você pode acessar de qualquer lugar pelo navegador, basta ter uma conexão estável com a internet."
   }
 ]
 
@@ -82,7 +82,7 @@ export function FaqSection() {
             Perguntas Frequentes
           </h2>
           <p className="mt-4 text-lg text-muted-foreground max-w-2xl mx-auto">
-            Tire suas dúvidas sobre os canais esportivos da Synex, planos, dispositivos compatíveis e mais.
+            Tire suas dúvidas sobre os canais esportivos da Synex, planos, acesso pelo navegador e mais.
           </p>
         </div>
 
