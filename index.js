@@ -1,6 +1,6 @@
 const { spawn } = require("child_process")
 
-const port = process.env.PORT || "3000"
+const port = process.env.PORT || "8080"
 const nextBin = require.resolve("next/dist/bin/next")
 
 const server = spawn(process.execPath, [nextBin, "start", "-p", port], {
