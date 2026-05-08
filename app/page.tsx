@@ -11,7 +11,7 @@ import { listPlans } from "@/lib/contracts-db"
 export const dynamic = "force-dynamic"
 
 export default async function Home() {
-  const plans = await listPlans()
+  const plans = await listPlans().catch(() => [])
 
   return (
     <main className="min-h-screen relative overflow-x-hidden">
