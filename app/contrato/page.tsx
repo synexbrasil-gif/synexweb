@@ -235,7 +235,7 @@ export default function ContratoPage() {
                 <div className="mt-5 rounded-lg border border-border/70 bg-background/60 p-4">
                   <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">Situação</p>
                   <p className="mt-2 text-lg font-semibold text-foreground">
-                    {isExpired ? "Renovação disponível" : "Contrato dentro do período do plano"}
+                    {isExpired ? "Contrato vencido" : "Contrato ativo"}
                   </p>
                 </div>
 
