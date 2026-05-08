@@ -12,6 +12,7 @@ import {
   Plug,
   Search,
   Trash2,
+  UserCog,
   UserRound,
 } from "lucide-react"
 
@@ -48,6 +49,20 @@ type Plan = {
   updatedAt: string | null
 }
 
+type AdminUser = {
+  id: string
+  fullName: string
+  username: string
+  password: string
+  role: string
+  createdAt: string
+}
+
+type AdminSession = {
+  fullName: string
+  role: string
+}
+
 function parseCurrencyValue(value: string) {
   const price = value.trim()
   if (!price) return Number.NaN
@@ -62,7 +77,7 @@ function parseCurrencyValue(value: string) {
 export default function AdminPage() {
   const router = useRouter()
   const { notify } = useNotification()
-  const [activeSection, setActiveSection] = useState<"contracts" | "logins" | "plans" | "integrations">("contracts")
+  const [activeSection, setActiveSection] = useState<"contracts" | "logins" | "plans" | "integrations" | "admins">("contracts")
   const [contracts, setContracts] = useState<Contract[]>([])
   const [credentialDrafts, setCredentialDrafts] = useState<Record<string, { username: string; password: string }>>({})
   const [savingCredentialId, setSavingCredentialId] = useState<string | null>(null)
@@ -89,6 +104,46 @@ export default function AdminPage() {
   const [planPrices, setPlanPrices] = useState<Record<string, string>>({})
   const [isLoadingPlans, setIsLoadingPlans] = useState(true)
   const [isSavingPlans, setIsSavingPlans] = useState(false)
+  const [adminUsers, setAdminUsers] = useState<AdminUser[]>([])
+  const [adminFullName, setAdminFullName] = useState("")
+  const [adminUsername, setAdminUsername] = useState("")
+  const [adminPassword, setAdminPassword] = useState("")
+  const [adminRole, setAdminRole] = useState("")
+  const [isLoadingAdminUsers, setIsLoadingAdminUsers] = useState(true)
+  const [isSavingAdminUser, setIsSavingAdminUser] = useState(false)
+  const [adminError, setAdminError] = useState("")
+  const [currentAdmin, setCurrentAdmin] = useState<AdminSession>({ fullName: "Synex Brasil", role: "" })
+  const [isLoadingAdminSession, setIsLoadingAdminSession] = useState(true)
+
+  const canManageAdminUsers = ["admin", "ceo"].includes(currentAdmin.role.trim().toLowerCase())
+
+  useEffect(() => {
+    const loadAdminSession = async () => {
+      setIsLoadingAdminSession(true)
+
+      try {
+        const response = await fetch("/api/contrato-auth", { cache: "no-store" })
+        if (response.status === 401) {
+          router.replace("/contrato/login?next=/admin")
+          return
+        }
+
+        if (!response.ok) return
+
+        const data = await response.json()
+        if (data.admin?.fullName && data.admin?.role) {
+          setCurrentAdmin({
+            fullName: data.admin.fullName,
+            role: data.admin.role,
+          })
+        }
+      } finally {
+        setIsLoadingAdminSession(false)
+      }
+    }
+
+    loadAdminSession()
+  }, [router])
 
   useEffect(() => {
     const loadContracts = async () => {
@@ -195,6 +250,43 @@ export default function AdminPage() {
     loadPlans()
   }, [])
 
+  useEffect(() => {
+    const loadAdminUsers = async () => {
+      if (!canManageAdminUsers) {
+        setAdminUsers([])
+        setIsLoadingAdminUsers(false)
+        return
+      }
+
+      setIsLoadingAdminUsers(true)
+
+      try {
+        const response = await fetch("/api/admin-users", { cache: "no-store" })
+        if (response.status === 401) {
+          router.replace("/contrato/login?next=/admin")
+          return
+        }
+
+        if (!response.ok) return
+
+        const data = await response.json()
+        if (Array.isArray(data.users)) {
+          setAdminUsers(data.users)
+        }
+      } finally {
+        setIsLoadingAdminUsers(false)
+      }
+    }
+
+    loadAdminUsers()
+  }, [canManageAdminUsers, router])
+
+  useEffect(() => {
+    if (!canManageAdminUsers && activeSection === "admins") {
+      setActiveSection("contracts")
+    }
+  }, [activeSection, canManageAdminUsers])
+
   const filteredContracts = useMemo(() => {
     const query = searchQuery.trim().toLowerCase()
     if (!query) return contracts
@@ -218,6 +310,14 @@ export default function AdminPage() {
     setActivationDate("")
     setPlan("")
     setEditingContractId(null)
+  }
+
+  const resetAdminUserForm = () => {
+    setAdminFullName("")
+    setAdminUsername("")
+    setAdminPassword("")
+    setAdminRole("")
+    setAdminError("")
   }
 
   const startEditContract = (contract: Contract) => {
@@ -532,6 +632,83 @@ export default function AdminPage() {
     }
   }
 
+  const saveAdminUser = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    setAdminError("")
+
+    const cleanFullName = adminFullName.trim()
+    const cleanUsername = adminUsername.trim()
+    const cleanPassword = adminPassword.trim()
+    const cleanRole = adminRole.trim()
+
+    if (!cleanFullName || !cleanUsername || !cleanPassword || !cleanRole) {
+      setAdminError("Preencha todos os campos.")
+      return
+    }
+
+    setIsSavingAdminUser(true)
+
+    try {
+      const response = await fetch("/api/admin-users", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          fullName: cleanFullName,
+          username: cleanUsername,
+          password: cleanPassword,
+          role: cleanRole,
+        }),
+      })
+
+      const data = await response.json().catch(() => null)
+
+      if (!response.ok) {
+        if (response.status === 401) {
+          router.replace("/contrato/login?next=/admin")
+          return
+        }
+
+        setAdminError(data?.error ?? "Nao foi possivel salvar o usuario.")
+        return
+      }
+
+      setAdminUsers((currentUsers) => [data.user, ...currentUsers])
+      resetAdminUserForm()
+      notify({ title: "Usuario salvo", description: "O acesso ao painel admin foi cadastrado.", tone: "success" })
+    } catch {
+      setAdminError("Nao foi possivel salvar o usuario.")
+    } finally {
+      setIsSavingAdminUser(false)
+    }
+  }
+
+  const removeAdminUser = async (adminUserId: string) => {
+    setAdminError("")
+
+    try {
+      const response = await fetch(`/api/admin-users?id=${encodeURIComponent(adminUserId)}`, {
+        method: "DELETE",
+      })
+
+      if (!response.ok) {
+        if (response.status === 401) {
+          router.replace("/contrato/login?next=/admin")
+          return
+        }
+
+        notify({ title: "Usuario nao removido", description: "Nao foi possivel remover o acesso.", tone: "error" })
+        return
+      }
+
+      setAdminUsers((currentUsers) => currentUsers.filter((user) => user.id !== adminUserId))
+      notify({ title: "Usuario removido", description: "O acesso ao painel admin foi removido.", tone: "success" })
+    } catch {
+      notify({ title: "Usuario nao removido", description: "Nao foi possivel remover o acesso.", tone: "error" })
+    }
+  }
+
   return (
     <main className="relative min-h-screen overflow-hidden bg-[linear-gradient(115deg,oklch(0.93_0_0)_0%,oklch(0.98_0_0)_42%,oklch(0.92_0_0)_100%)] text-foreground">
       <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(115deg,oklch(0.93_0_0)_0%,oklch(0.98_0_0)_42%,oklch(0.92_0_0)_100%)]" />
@@ -542,8 +719,12 @@ export default function AdminPage() {
       <div className="relative z-10 flex min-h-screen">
         <aside className="hidden w-72 shrink-0 border-r border-sidebar-border/40 bg-[linear-gradient(115deg,oklch(0.93_0_0)_0%,oklch(0.98_0_0)_58%,oklch(0.92_0_0)_100%)] lg:flex lg:flex-col">
           <div className="flex h-[73px] flex-col justify-center border-b border-border/60 px-6">
-            <p className="text-sm font-semibold text-foreground">Synex Brasil</p>
-            <p className="text-xs text-muted-foreground">Admin</p>
+            <p className="truncate text-sm font-semibold text-foreground">
+              {isLoadingAdminSession ? "Carregando..." : currentAdmin.fullName}
+            </p>
+            <p className="truncate text-xs text-muted-foreground">
+              {isLoadingAdminSession ? "" : currentAdmin.role || "Admin"}
+            </p>
           </div>
 
           <nav className="flex-1 space-y-1 p-4">
@@ -610,6 +791,29 @@ export default function AdminPage() {
                 {plans.length}
               </span>
             </button>
+            {canManageAdminUsers && (
+              <button
+                type="button"
+                onClick={() => setActiveSection("admins")}
+                className={cn(
+                  "group flex w-full items-center justify-between gap-3 rounded-xl px-3 py-3 text-sm font-medium transition-all duration-200",
+                  activeSection === "admins"
+                    ? "bg-[linear-gradient(135deg,oklch(0.99_0_0)_0%,oklch(0.94_0_0)_58%,oklch(0.90_0_0)_100%)] text-sidebar-accent-foreground shadow-md shadow-foreground/5"
+                    : "text-sidebar-foreground/70 hover:bg-white/35 hover:text-sidebar-foreground hover:shadow-sm",
+                )}
+              >
+                <span className="flex min-w-0 items-center gap-3">
+                  <UserCog className="h-4 w-4 shrink-0" />
+                  <span className="truncate">Admin</span>
+                </span>
+                <span className={cn(
+                  "rounded-full px-2 py-0.5 text-[10px] font-semibold",
+                  activeSection === "admins" ? "bg-foreground/10 text-foreground" : "bg-foreground/5 text-muted-foreground",
+                )}>
+                  {adminUsers.length}
+                </span>
+              </button>
+            )}
             <button
               type="button"
               onClick={() => setActiveSection("integrations")}
@@ -940,6 +1144,104 @@ export default function AdminPage() {
                   {isSavingPlans ? "Salvando..." : "Salvar planos"}
                 </Button>
               </form>
+            </section>
+            ) : activeSection === "admins" ? (
+            <section className="grid gap-6 xl:grid-cols-[24rem_minmax(0,1fr)]">
+              <form onSubmit={saveAdminUser} className="rounded-lg border border-border/70 bg-[linear-gradient(135deg,oklch(0.99_0_0)_0%,oklch(0.97_0_0)_50%,oklch(0.94_0_0)_100%)] p-4 shadow-sm">
+                <div className="flex items-center gap-2">
+                  <UserCog className="h-4 w-4 text-muted-foreground" />
+                  <h2 className="text-base font-semibold text-foreground">Novo admin</h2>
+                </div>
+
+                <div className="mt-5 space-y-4">
+                  <AdminField label="Nome completo" value={adminFullName} onChange={setAdminFullName} placeholder="Nome do administrador" />
+                  <AdminField label="Usuario" value={adminUsername} onChange={setAdminUsername} placeholder="Usuario de acesso" />
+                  <AdminField label="Senha" value={adminPassword} onChange={setAdminPassword} placeholder="Senha de acesso" type="password" />
+                  <AdminField label="Cargo" value={adminRole} onChange={setAdminRole} placeholder="Administrador, Suporte..." />
+
+                  {adminError && <p className="text-sm font-medium text-destructive">{adminError}</p>}
+
+                  <Button type="submit" className="h-11 w-full rounded-lg bg-foreground text-background hover:bg-foreground/90" disabled={isSavingAdminUser}>
+                    {isSavingAdminUser ? "Salvando..." : "Salvar admin"}
+                  </Button>
+                </div>
+              </form>
+
+              <section className="min-w-0 rounded-lg border border-border/70 bg-[linear-gradient(135deg,oklch(0.99_0_0)_0%,oklch(0.97_0_0)_50%,oklch(0.94_0_0)_100%)] shadow-sm">
+                <div className="flex items-center justify-between border-b border-border/70 p-4">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <UserCog className="h-4 w-4 text-muted-foreground" />
+                      <h2 className="text-base font-semibold text-foreground">Usuários admin</h2>
+                    </div>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {isLoadingAdminUsers ? "Carregando usuários..." : "Acessos autorizados para entrar no painel."}
+                    </p>
+                  </div>
+                  <span className="rounded-full bg-foreground/10 px-2.5 py-1 text-xs font-semibold text-foreground">
+                    {adminUsers.length}
+                  </span>
+                </div>
+
+                <div className="overflow-x-auto">
+                  <table className="w-full min-w-[48rem] text-left text-sm">
+                    <thead className="border-b border-border/70 bg-muted/30 text-xs uppercase text-muted-foreground">
+                      <tr>
+                        <th className="w-72 px-4 py-3 font-semibold">Nome completo</th>
+                        <th className="px-4 py-3 font-semibold">Usuario</th>
+                        <th className="px-4 py-3 font-semibold">Senha</th>
+                        <th className="px-4 py-3 font-semibold">Cargo</th>
+                        <th className="w-28 px-4 py-3 text-right font-semibold">Ação</th>
+                      </tr>
+                    </thead>
+                    <tbody className={cn(isLoadingAdminUsers && "animate-pulse")}>
+                      {isLoadingAdminUsers ? (
+                        Array.from({ length: 4 }).map((_, index) => (
+                          <tr key={`loading-admin-${index}`} className="border-b border-border/50 last:border-0">
+                            <td className="px-4 py-4"><div className="h-4 w-44 rounded-full bg-muted" /></td>
+                            <td className="px-4 py-4"><div className="h-4 w-28 rounded-full bg-muted" /></td>
+                            <td className="px-4 py-4"><div className="h-4 w-24 rounded-full bg-muted" /></td>
+                            <td className="px-4 py-4"><div className="h-6 w-24 rounded-full bg-muted" /></td>
+                            <td className="px-4 py-4"><div className="ml-auto h-9 w-9 rounded-lg bg-muted" /></td>
+                          </tr>
+                        ))
+                      ) : adminUsers.map((user) => (
+                        <tr key={user.id} className="border-b border-border/50 last:border-0">
+                          <td className="whitespace-nowrap px-4 py-3 font-medium text-foreground">{user.fullName}</td>
+                          <td className="px-4 py-3 text-muted-foreground">{user.username}</td>
+                          <td className="px-4 py-3 font-mono text-xs text-muted-foreground">********</td>
+                          <td className="px-4 py-3">
+                            <span className="inline-flex rounded-full bg-foreground/10 px-2.5 py-1 text-xs font-semibold text-foreground">
+                              {user.role}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 text-right">
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              className="h-9 w-9 rounded-lg bg-foreground text-background hover:bg-foreground/85 hover:text-background"
+                              onClick={() => removeAdminUser(user.id)}
+                              aria-label="Remover admin"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+
+                  {!isLoadingAdminUsers && adminUsers.length === 0 && (
+                    <div className="flex min-h-60 items-center justify-center p-8 text-center">
+                      <div>
+                        <p className="font-semibold text-foreground">Nenhum admin cadastrado</p>
+                        <p className="mt-1 text-sm text-muted-foreground">Cadastre um usuário para liberar acesso ao painel.</p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </section>
             </section>
             ) : (
             <section>

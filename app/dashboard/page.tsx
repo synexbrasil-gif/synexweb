@@ -1279,6 +1279,7 @@ export default function DashboardPage() {
     const categoryName = categoryNameById.get(channel.category_id) ?? ""
     const haystack = `${channel.name} ${formattedName} ${categoryName}`.toLowerCase()
 
+    if (formatCategoryName(categoryName) === "Agenda Esportiva") return "https://i.ibb.co/kVTwX00n/3.png"
     if (haystack.includes("cazetv") || haystack.includes("caze tv")) return "https://i.ibb.co/Ld7kdJn6/cazetv.png"
     if (haystack.includes("hbo")) return "https://i.ibb.co/twR0Q0hd/hbo.png"
     if (haystack.includes("globo")) return "https://i.ibb.co/Gv4k5Gcr/globo.png"
@@ -1298,6 +1299,10 @@ export default function DashboardPage() {
 
   function getChannelImageClass(channel: Channel, formattedName: string, fallbackClass: string) {
     const categoryName = categoryNameById.get(channel.category_id) ?? ""
+    if (formatCategoryName(categoryName) === "Agenda Esportiva") {
+      return "p-3"
+    }
+
     if (matchesTerms(["paramount"], channel.name, formattedName, categoryName)) {
       return "p-3 brightness-0"
     }
