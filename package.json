@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
+    "database:deploy": "node scripts/checkpoint-database.js",
     "build": "next build",
     "start": "node index.js",
     "lint": "eslint ."
