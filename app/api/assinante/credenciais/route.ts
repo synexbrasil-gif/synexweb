@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 
 import {
+  findContractByPaymentId,
   findSubscriberByCredentials,
   findSubscriberByLoginCredentials,
   updateContractCredentials,
@@ -15,16 +16,18 @@ export async function PATCH(request: Request) {
   const input = (await request.json()) as {
     currentUsername?: string
     currentPassword?: string
+    paymentId?: string
     username?: string
     password?: string
   }
 
   const currentUsername = input.currentUsername?.trim()
   const currentPassword = input.currentPassword?.trim()
+  const paymentId = input.paymentId?.trim()
   const username = input.username?.trim()
   const password = input.password?.trim()
 
-  if (!currentUsername || !currentPassword) {
+  if ((!currentUsername || !currentPassword) && !paymentId) {
     return NextResponse.json({ error: "Sessao nao encontrada." }, { status: 401 })
   }
 
@@ -33,9 +36,10 @@ export async function PATCH(request: Request) {
   }
 
   try {
-    const contract =
-      (await findSubscriberByLoginCredentials(currentUsername, currentPassword)) ??
-      (await findSubscriberByCredentials(currentUsername, currentPassword))
+    const contract = paymentId
+      ? await findContractByPaymentId(paymentId)
+      : (await findSubscriberByLoginCredentials(currentUsername ?? "", currentPassword ?? "")) ??
+        (await findSubscriberByCredentials(currentUsername ?? "", currentPassword ?? ""))
 
     if (!contract) {
       return NextResponse.json({ error: "Contrato nao encontrado." }, { status: 404 })

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server"
 
-import { findSubscriberByCredentials, findSubscriberByLoginCredentials } from "@/lib/contracts-db"
+import { findContractByPaymentId, findSubscriberByCredentials, findSubscriberByLoginCredentials } from "@/lib/contracts-db"
 
 function parseBrazilianDate(value: string | null | undefined) {
   const match = value?.trim().match(/^(\d{2})\/(\d{2})\/(\d{4})$/)
@@ -38,20 +38,24 @@ function isContractExpired(activationDate: string | null | undefined, plan: stri
 
 export async function POST(request: Request) {
   const credentials = (await request.json()) as {
+    paymentId?: string
     username?: string
     password?: string
   }
 
+  const paymentId = credentials.paymentId?.trim()
   const username = credentials.username?.trim()
   const password = credentials.password?.trim()
 
-  if (!username || !password) {
+  if (!paymentId && (!username || !password)) {
     return NextResponse.json({ fullName: null })
   }
 
   try {
-    const contract =
-      (await findSubscriberByLoginCredentials(username, password)) ?? (await findSubscriberByCredentials(username, password))
+    const contract = paymentId
+      ? await findContractByPaymentId(paymentId)
+      : (await findSubscriberByLoginCredentials(username ?? "", password ?? "")) ??
+        (await findSubscriberByCredentials(username ?? "", password ?? ""))
 
     return NextResponse.json({
       activationDate: contract?.activationDate ?? null,

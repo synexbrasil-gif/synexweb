@@ -14,6 +14,7 @@ import {
   Search,
   Trash2,
   UserCog,
+  UserRound,
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -132,7 +133,7 @@ export default function AdminPage() {
 
     try {
       await fetch("/api/contrato-auth", { method: "DELETE" })
-      router.replace("/contrato/login?next=/admin")
+      router.replace("/")
     } catch {
       notify({ title: "Nao foi possivel sair", description: "Tente novamente em alguns instantes.", tone: "error" })
       setIsLoggingOut(false)
@@ -319,7 +320,7 @@ export default function AdminPage() {
   }, [contracts, searchQuery])
 
   const totalPlans = useMemo(() => {
-    return new Set(contracts.map((contract) => contract.plan.trim()).filter(Boolean)).size
+    return contracts.filter((contract) => contract.username.trim() !== "0").length
   }, [contracts])
 
   const latestContract = contracts[0]
@@ -752,13 +753,18 @@ export default function AdminPage() {
             panelOpen ? "translate-x-0" : "-translate-x-full",
           )}
         >
-          <div className="flex h-[73px] shrink-0 flex-col justify-center border-b border-border/60 px-6">
-            <p className="truncate text-sm font-semibold text-foreground">
-              {isLoadingAdminSession ? "Carregando..." : currentAdmin.fullName}
-            </p>
-            <p className="truncate text-xs text-muted-foreground">
-              {isLoadingAdminSession ? "" : currentAdmin.role || "Admin"}
-            </p>
+          <div className="flex h-[73px] shrink-0 items-center gap-3 border-b border-border/60 px-6">
+            <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full border border-border/70 bg-background/70 text-foreground shadow-sm">
+              <UserRound className="h-5 w-5" />
+            </span>
+            <div className="min-w-0">
+              <p className="truncate text-sm font-semibold text-foreground">
+                {isLoadingAdminSession ? "Carregando..." : currentAdmin.fullName}
+              </p>
+              <p className="truncate text-xs text-muted-foreground">
+                {isLoadingAdminSession ? "" : currentAdmin.role || "Admin"}
+              </p>
+            </div>
           </div>
 
           <nav className="min-h-0 flex-1 space-y-1 overflow-y-auto overscroll-contain p-4">

@@ -109,7 +109,8 @@ export default function CheckoutPage() {
         if (!isMounted || !response.ok) return
 
         if (data.approved) {
-          router.replace(`/pedido/${encodeURIComponent(String(pixPayment.id))}`)
+          sessionStorage.setItem("synex_payment_id", String(pixPayment.id))
+          router.replace("/contrato?section=access")
         }
       } catch {
         return

@@ -37,14 +37,12 @@ export default function LoginPage() {
 
       if (data?.iptvUsername && data?.iptvPassword) {
         if (String(data.iptvUsername).trim() === "0") {
-          const message = "Seu contrato ainda não foi ativado. Entre em contato com o suporte para liberar o acesso."
-          notify({ title: "Contrato não ativado", description: message, tone: "error" })
-          setIsLoading(false)
-          return
+          sessionStorage.setItem("iptv_username", loginUsername)
+          sessionStorage.setItem("iptv_password", loginPassword)
+        } else {
+          sessionStorage.setItem("iptv_username", data.iptvUsername)
+          sessionStorage.setItem("iptv_password", data.iptvPassword)
         }
-
-        sessionStorage.setItem("iptv_username", data.iptvUsername)
-        sessionStorage.setItem("iptv_password", data.iptvPassword)
       } else if (data?.fullName) {
         sessionStorage.setItem("iptv_username", loginUsername)
         sessionStorage.setItem("iptv_password", loginPassword)
@@ -53,6 +51,8 @@ export default function LoginPage() {
         setIsLoading(false)
         return
       }
+
+      sessionStorage.removeItem("synex_payment_id")
 
       if (remember) {
         localStorage.setItem("synex_remember_session", "true")
@@ -64,7 +64,7 @@ export default function LoginPage() {
         localStorage.removeItem("synex_login_password")
       }
 
-      router.replace("/dashboard")
+      router.replace("/contrato")
     } catch {
       notify({ title: "Erro no login", description: "Nao foi possivel entrar. Tente novamente.", tone: "error" })
       setIsLoading(false)

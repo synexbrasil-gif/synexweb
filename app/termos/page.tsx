@@ -50,13 +50,16 @@ const sections = [
 
 export default function TermsPage() {
   return (
-    <main className="relative min-h-screen overflow-hidden bg-[linear-gradient(115deg,oklch(0.93_0_0)_0%,oklch(0.98_0_0)_42%,oklch(0.92_0_0)_100%)] text-foreground">
+    <main
+      className="relative min-h-screen overflow-hidden bg-[linear-gradient(115deg,oklch(0.93_0_0)_0%,oklch(0.98_0_0)_42%,oklch(0.92_0_0)_100%)] text-foreground"
+      style={{ animation: "synex-fade-in 420ms ease-out both" }}
+    >
       <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(115deg,oklch(0.93_0_0)_0%,oklch(0.98_0_0)_42%,oklch(0.92_0_0)_100%)]" />
       <div className="gradient-glow gradient-glow-1" style={{ top: "-220px", left: "-180px" }} />
       <div className="gradient-glow gradient-glow-2" style={{ top: "160px", right: "-220px" }} />
       <div className="gradient-glow gradient-glow-3" style={{ bottom: "-260px", left: "25%" }} />
 
-      <div className="relative z-10 mx-auto flex min-h-screen w-full max-w-5xl flex-col px-4 py-8 sm:px-6 lg:px-8" style={{ animation: "synex-fade-in 420ms ease-out both" }}>
+      <div className="relative z-10 mx-auto flex min-h-screen w-full max-w-5xl flex-col px-4 py-8 sm:px-6 lg:px-8">
         <section className="py-10 sm:py-14">
           <p className="text-sm font-semibold uppercase tracking-[0.18em] text-muted-foreground">Termos de Uso</p>
           <h1 className="mt-3 max-w-3xl text-3xl font-bold tracking-normal text-foreground sm:text-4xl">

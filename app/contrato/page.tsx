@@ -1,10 +1,13 @@
 "use client"
 
-import { type ComponentType, useEffect, useState } from "react"
+import { type ComponentType, type FormEvent, useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
-import { FileText, KeyRound, Menu, MessageCircle, UserRound } from "lucide-react"
+import { Eye, EyeOff, FileText, KeyRound, Menu, MessageCircle, TvMinimal, UserRound } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Spinner } from "@/components/ui/spinner"
+import { useNotification } from "@/components/notification-provider"
 import { cn } from "@/lib/utils"
 
 type SubscriberContract = {
@@ -18,7 +21,7 @@ type SubscriberContract = {
   plan: string | null
 }
 
-type ContractSection = "overview" | "access" | "renewal"
+type ContractSection = "overview" | "access" | "channels" | "renewal"
 type SectionItem = {
   id: ContractSection
   label: string
@@ -27,24 +30,36 @@ type SectionItem = {
 
 export default function ContratoPage() {
   const router = useRouter()
+  const { notify } = useNotification()
   const [contract, setContract] = useState<SubscriberContract | null>(null)
   const [activeSection, setActiveSection] = useState<ContractSection>("overview")
   const [isLoading, setIsLoading] = useState(true)
   const [panelOpen, setPanelOpen] = useState(false)
+  const [credentialUsername, setCredentialUsername] = useState("")
+  const [credentialPassword, setCredentialPassword] = useState("")
+  const [showCredentialPassword, setShowCredentialPassword] = useState(false)
+  const [isSavingCredentials, setIsSavingCredentials] = useState(false)
 
   useEffect(() => {
     const searchParams = new URLSearchParams(window.location.search)
+    const requestedSection = searchParams.get("section")
 
-    if (searchParams.get("section") === "renewal") {
-      setActiveSection("renewal")
+    if (
+      requestedSection === "access" ||
+      requestedSection === "channels" ||
+      requestedSection === "renewal" ||
+      requestedSection === "overview"
+    ) {
+      setActiveSection(requestedSection)
     }
   }, [])
 
   useEffect(() => {
     const username = sessionStorage.getItem("iptv_username")
     const password = sessionStorage.getItem("iptv_password")
+    const paymentId = sessionStorage.getItem("synex_payment_id")
 
-    if (!username || !password) {
+    if ((!username || !password) && !paymentId) {
       router.replace("/login")
       return
     }
@@ -58,7 +73,7 @@ export default function ContratoPage() {
           headers: {
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({ username, password }),
+          body: JSON.stringify(paymentId ? { paymentId } : { username, password }),
         })
 
         const data = (await response.json()) as SubscriberContract
@@ -89,7 +104,14 @@ export default function ContratoPage() {
     }
   }, [router])
 
+  useEffect(() => {
+    setCredentialUsername(contract?.loginUsername ?? "")
+    setCredentialPassword(contract?.loginPassword ?? "")
+  }, [contract?.loginPassword, contract?.loginUsername])
+
   const reference = contract?.contractUsername || contract?.paymentId || contract?.contractId || ""
+  const isPendingActivation = contract?.contractUsername?.trim() === "0"
+  const shouldDefineCredentials = contract?.contractUsername?.trim() === "0" && !contract?.loginUsername
   const isExpired = contract ? isContractExpired(contract.activationDate, contract.plan) : false
   const credentialsMessage = contract?.fullName
     ? `*${contract.fullName}*\nDesejo fazer a renovação do meu contrato.`
@@ -100,21 +122,101 @@ export default function ContratoPage() {
     : "Desejo alterar o plano do meu contrato."
   const changePlanUrl = `https://wa.me/212693974294?text=${encodeURIComponent(changePlanMessage)}`
   const handleBack = () => {
-    if (isExpired) {
-      sessionStorage.removeItem("iptv_username")
-      sessionStorage.removeItem("iptv_password")
-      localStorage.removeItem("synex_remember_session")
-      localStorage.removeItem("synex_login_username")
-      localStorage.removeItem("synex_login_password")
-      router.replace("/")
+    sessionStorage.removeItem("iptv_username")
+    sessionStorage.removeItem("iptv_password")
+    sessionStorage.removeItem("synex_payment_id")
+    localStorage.removeItem("synex_remember_session")
+    localStorage.removeItem("synex_login_username")
+    localStorage.removeItem("synex_login_password")
+    router.replace("/")
+  }
+  const handleWatchChannels = () => {
+    if (isPendingActivation) {
+      const customerName = contract?.fullName || "Cliente"
+      const message = `*${customerName}*\nÉ meu primeiro acesso, quero ativar meu contrato.`
+
+      window.open(`https://wa.me/212693974294?text=${encodeURIComponent(message)}`, "_blank", "noopener,noreferrer")
       return
     }
 
     router.push("/dashboard")
   }
+  const handleCredentialsSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+
+    const cleanUsername = credentialUsername.trim()
+    const cleanPassword = credentialPassword.trim()
+
+    if (!cleanUsername || !cleanPassword) {
+      notify({ title: "Dados incompletos", description: "Informe usuario e senha.", tone: "error" })
+      return
+    }
+
+    const currentUsername = sessionStorage.getItem("iptv_username")
+    const currentPassword = sessionStorage.getItem("iptv_password")
+    const paymentId = sessionStorage.getItem("synex_payment_id")
+
+    if ((!currentUsername || !currentPassword) && !paymentId) {
+      router.replace("/login")
+      return
+    }
+
+    setIsSavingCredentials(true)
+
+    try {
+      const response = await fetch("/api/assinante/credenciais", {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          currentUsername,
+          currentPassword,
+          paymentId,
+          username: cleanUsername,
+          password: cleanPassword,
+        }),
+      })
+      const data = await response.json().catch(() => null)
+
+      if (!response.ok) {
+        notify({
+          title: "Credenciais nao salvas",
+          description: data?.error ?? "Nao foi possivel salvar suas credenciais.",
+          tone: "error",
+        })
+        return
+      }
+
+      if (data?.contract?.iptvUsername && data?.contract?.iptvPassword) {
+        sessionStorage.setItem("iptv_username", data.contract.iptvUsername)
+        sessionStorage.setItem("iptv_password", data.contract.iptvPassword)
+      }
+
+      setContract((currentContract) =>
+        currentContract
+          ? {
+              ...currentContract,
+              loginUsername: cleanUsername,
+              loginPassword: cleanPassword,
+            }
+          : currentContract,
+      )
+      notify({ title: "Credenciais salvas", description: "Seu login foi atualizado com sucesso.", tone: "success" })
+    } catch {
+      notify({
+        title: "Credenciais nao salvas",
+        description: "Nao foi possivel salvar suas credenciais.",
+        tone: "error",
+      })
+    } finally {
+      setIsSavingCredentials(false)
+    }
+  }
   const sections: SectionItem[] = [
     { id: "overview", label: "Contrato", icon: FileText },
     { id: "access", label: "Acesso", icon: KeyRound },
+    { id: "channels", label: "Canais", icon: TvMinimal },
     { id: "renewal", label: "Renovação", icon: MessageCircle },
   ]
   const contractDetails = [
@@ -251,9 +353,88 @@ export default function ContratoPage() {
                   ))}
                 </div>
 
-                <div className="flex justify-end border-t border-border/70 p-5">
-                  <Button asChild className="h-11 rounded-lg bg-foreground px-6 text-background hover:bg-foreground/90">
-                    <a href="/contrato/credenciais">Alterar credenciais</a>
+                <div className="border-t border-border/70 p-5">
+                  <form onSubmit={handleCredentialsSubmit} className="grid gap-4 lg:grid-cols-[1fr_1fr_auto] lg:items-end">
+                    <label className="block">
+                      <span className="text-xs font-medium text-muted-foreground">
+                        {shouldDefineCredentials ? "Usuario" : "Novo usuario"}
+                      </span>
+                      <Input
+                        value={credentialUsername}
+                        onChange={(event) => setCredentialUsername(event.target.value)}
+                        placeholder="Digite o usuario"
+                        disabled={isSavingCredentials}
+                        className="mt-2 h-11 rounded-lg bg-background/70"
+                      />
+                    </label>
+
+                    <label className="block">
+                      <span className="text-xs font-medium text-muted-foreground">
+                        {shouldDefineCredentials ? "Senha" : "Nova senha"}
+                      </span>
+                      <div className="relative mt-2">
+                        <Input
+                          type={showCredentialPassword ? "text" : "password"}
+                          value={credentialPassword}
+                          onChange={(event) => setCredentialPassword(event.target.value)}
+                          placeholder="Digite a senha"
+                          disabled={isSavingCredentials}
+                          className="h-11 rounded-lg bg-background/70 pr-11"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowCredentialPassword((visible) => !visible)}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground transition-colors hover:text-foreground"
+                          aria-label={showCredentialPassword ? "Ocultar senha" : "Mostrar senha"}
+                          disabled={isSavingCredentials}
+                        >
+                          {showCredentialPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                        </button>
+                      </div>
+                    </label>
+
+                    <Button
+                      type="submit"
+                      className="h-11 rounded-lg bg-foreground px-6 text-background hover:bg-foreground/90"
+                      disabled={isSavingCredentials}
+                    >
+                      {isSavingCredentials ? (
+                        <span className="flex items-center gap-2">
+                          <Spinner className="h-5 w-5" />
+                          Salvando...
+                        </span>
+                      ) : shouldDefineCredentials ? (
+                        "Definir credenciais"
+                      ) : (
+                        "Salvar credenciais"
+                      )}
+                    </Button>
+                  </form>
+                </div>
+              </section>
+            ) : activeSection === "channels" ? (
+              <section className="rounded-lg border border-border/70 bg-[linear-gradient(135deg,oklch(0.99_0_0)_0%,oklch(0.97_0_0)_50%,oklch(0.94_0_0)_100%)] p-5 shadow-sm">
+                <h2 className="text-base font-semibold text-foreground">Canais</h2>
+                <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
+                  Acesse o player para assistir aos canais liberados no seu contrato.
+                </p>
+
+                <div className="mt-5 rounded-lg border border-border/70 bg-background/60 p-4">
+                  <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">Acesso ao player</p>
+                  <p className="mt-2 text-lg font-semibold text-foreground">
+                    {isPendingActivation
+                      ? "Ative seu contrato para acessar o conteúdo"
+                      : "Clique para acessar o conteúdo disponivel"}
+                  </p>
+                </div>
+
+                <div className="mt-5">
+                  <Button
+                    type="button"
+                    className="h-11 rounded-lg bg-foreground px-6 text-background hover:bg-foreground/90"
+                    onClick={handleWatchChannels}
+                  >
+                    {isPendingActivation ? "Ativar contrato" : "Assistir canais"}
                   </Button>
                 </div>
               </section>
@@ -267,7 +448,7 @@ export default function ContratoPage() {
                 <div className="mt-5 rounded-lg border border-border/70 bg-background/60 p-4">
                   <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">Situação</p>
                   <p className="mt-2 text-lg font-semibold text-foreground">
-                    {isExpired ? "Contrato vencido" : "Contrato ativo"}
+                    {isPendingActivation ? "Contrato aguardando ativação" : isExpired ? "Contrato vencido" : "Contrato ativo"}
                   </p>
                 </div>
 

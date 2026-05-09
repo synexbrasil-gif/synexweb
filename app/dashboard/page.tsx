@@ -382,8 +382,10 @@ export default function DashboardPage() {
       const rememberedPassword = localStorage.getItem("synex_login_password")
 
       if (remembered && rememberedUsername && rememberedPassword) {
-        storedUsername = rememberedUsername
-        storedPassword = rememberedPassword
+        sessionStorage.setItem("iptv_username", rememberedUsername)
+        sessionStorage.setItem("iptv_password", rememberedPassword)
+        router.replace("/contrato")
+        return
       }
     }
 
@@ -777,7 +779,9 @@ export default function DashboardPage() {
       setCategories(bestServer.categories)
       setChannels(bestServer.channels)
       setSelectedCategory(
-        bestServer.categories.find((category) => category.category_id === SYNEX_AMAZON_CATEGORY_ID) ?? null,
+        bestServer.categories.find((category) => isSportsAgendaCategory(category.category_name)) ??
+          bestServer.categories.find((category) => category.category_id === SYNEX_AMAZON_CATEGORY_ID) ??
+          null,
       )
       setIsLoading(false)
       window.clearTimeout(connectionTimeout)
@@ -945,6 +949,8 @@ export default function DashboardPage() {
     let nativeErrorHandler: (() => void) | null = null
     let watchPlaybackHealth: (() => void) | null = null
     let channelLoadTimeout: NodeJS.Timeout | null = null
+    let liveEdgeInterval: NodeJS.Timeout | null = null
+    let liveEdgeStartedAt = 0
     let fatalRecoveryAttempts = 0
 
     if (hlsRef.current) {
@@ -1006,6 +1012,24 @@ export default function DashboardPage() {
       }
     }
 
+    const syncToLiveEdge = () => {
+      if (disposed || video.paused || video.ended) return
+      if (liveEdgeStartedAt && Date.now() - liveEdgeStartedAt < 20000) return
+
+      const liveSyncPosition = hlsRef.current?.liveSyncPosition
+      if (typeof liveSyncPosition === "number" && Number.isFinite(liveSyncPosition)) {
+        if (video.currentTime < liveSyncPosition - 15) {
+          video.currentTime = Math.max(0, liveSyncPosition - 2)
+        }
+        return
+      }
+
+      const seekableEnd = video.seekable.length ? video.seekable.end(video.seekable.length - 1) : 0
+      if (seekableEnd > 0 && video.currentTime < seekableEnd - 18) {
+        video.currentTime = Math.max(0, seekableEnd - 3)
+      }
+    }
+
     const schedulePlaybackRecovery = () => {
       if (playbackRecoveryTimerRef.current) return
 
@@ -1060,16 +1084,22 @@ export default function DashboardPage() {
     if (Hls.isSupported()) {
       const hls = new Hls({
         enableWorker: true,
-        lowLatencyMode: false,
+        lowLatencyMode: true,
         capLevelToPlayerSize: true,
-        backBufferLength: 10,
-        maxBufferLength: 18,
-        maxMaxBufferLength: 30,
+        backBufferLength: 0,
+        maxBufferLength: 12,
+        maxMaxBufferLength: 12,
+        liveSyncDurationCount: 2,
+        liveMaxLatencyDurationCount: 5,
+        maxLiveSyncPlaybackRate: 1.25,
+        nudgeOffset: 0.2,
+        nudgeMaxRetry: 5,
         manifestLoadingTimeOut: 10000,
         fragLoadingTimeOut: 12000,
         fragLoadingMaxRetry: 3,
         manifestLoadingMaxRetry: 2,
         startLevel: -1,
+        startPosition: -1,
         debug: false,
       })
 
@@ -1077,8 +1107,11 @@ export default function DashboardPage() {
       hls.attachMedia(video)
 
       hls.on(Hls.Events.MANIFEST_PARSED, () => {
+        liveEdgeStartedAt = Date.now()
         tryPlay()
       })
+
+      liveEdgeInterval = setInterval(syncToLiveEdge, 5000)
 
       hls.on(Hls.Events.ERROR, (_, data) => {
         if (disposed) return
@@ -1121,6 +1154,7 @@ export default function DashboardPage() {
       video.src = streamUrl
       
       nativeLoadHandler = () => {
+        liveEdgeStartedAt = Date.now()
         tryPlay()
       }
       
@@ -1131,6 +1165,7 @@ export default function DashboardPage() {
 
       video.addEventListener("loadedmetadata", nativeLoadHandler)
       video.addEventListener("error", nativeErrorHandler)
+      liveEdgeInterval = setInterval(syncToLiveEdge, 5000)
     } else {
       setError("Seu navegador não suporta reprodução HLS.")
       setLoadingChannel(false)
@@ -1153,6 +1188,10 @@ export default function DashboardPage() {
       if (channelLoadTimeout) {
         clearTimeout(channelLoadTimeout)
         channelLoadTimeout = null
+      }
+      if (liveEdgeInterval) {
+        clearInterval(liveEdgeInterval)
+        liveEdgeInterval = null
       }
       if (hlsRef.current) {
         hlsRef.current.destroy()
@@ -1234,6 +1273,12 @@ export default function DashboardPage() {
     localStorage.removeItem("synex_login_password")
     setAccountMenuOpen(false)
     router.replace("/")
+  }
+
+  const handleBackToContract = () => {
+    stopPlayback()
+    setAccountMenuOpen(false)
+    router.push("/contrato")
   }
 
   const retryConnection = () => {
@@ -1546,25 +1591,13 @@ export default function DashboardPage() {
                     <p className="mt-1 text-sm font-semibold text-card-foreground">{activationDateLabel}</p>
                   </div>
 
-                  {hasSubscriberContract && (
-                    <Button
-                      asChild
-                      variant="outline"
-                      className="h-11 w-full rounded-xl border-border/70 bg-background hover:bg-black hover:text-white"
-                    >
-                      <a href="/contrato">
-                        Meu contrato
-                      </a>
-                    </Button>
-                  )}
-
                   <Button
                     type="button"
                     variant="outline"
                     className="h-11 w-full rounded-xl border-border/70 bg-background hover:bg-black hover:text-white"
-                    onClick={handleLogout}
+                    onClick={handleBackToContract}
                   >
-                    Sair
+                    Voltar
                   </Button>
                 </div>
               </div>

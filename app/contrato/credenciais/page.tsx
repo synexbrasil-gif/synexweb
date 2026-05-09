@@ -22,8 +22,9 @@ export default function ContratoCredenciaisPage() {
   useEffect(() => {
     const currentUsername = sessionStorage.getItem("iptv_username")
     const currentPassword = sessionStorage.getItem("iptv_password")
+    const paymentId = sessionStorage.getItem("synex_payment_id")
 
-    if (!currentUsername || !currentPassword) {
+    if ((!currentUsername || !currentPassword) && !paymentId) {
       router.replace("/login")
     }
   }, [router])
@@ -41,8 +42,9 @@ export default function ContratoCredenciaisPage() {
 
     const currentUsername = sessionStorage.getItem("iptv_username")
     const currentPassword = sessionStorage.getItem("iptv_password")
+    const paymentId = sessionStorage.getItem("synex_payment_id")
 
-    if (!currentUsername || !currentPassword) {
+    if ((!currentUsername || !currentPassword) && !paymentId) {
       router.replace("/login")
       return
     }
@@ -58,6 +60,7 @@ export default function ContratoCredenciaisPage() {
         body: JSON.stringify({
           currentUsername,
           currentPassword,
+          paymentId,
           username: cleanUsername,
           password: cleanPassword,
         }),
@@ -82,7 +85,7 @@ export default function ContratoCredenciaisPage() {
       }
 
       notify({ title: "Credenciais alteradas", description: "Seu novo login foi salvo com sucesso.", tone: "success" })
-      router.replace("/dashboard")
+      router.replace("/contrato?section=access")
     } catch {
       notify({
         title: "Credenciais nao alteradas",

@@ -13,7 +13,9 @@ export function proxy(request: NextRequest) {
     return NextResponse.json({ error: "Nao autorizado." }, { status: 401 })
   }
 
-  if (pathname === "/contrato" || pathname === "/contrato/login") return NextResponse.next()
+  if (pathname === "/contrato" || pathname === "/contrato/login" || pathname === "/contrato/credenciais") {
+    return NextResponse.next()
+  }
 
   if (isAuthenticated) return NextResponse.next()
 
