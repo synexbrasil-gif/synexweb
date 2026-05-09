@@ -2,7 +2,7 @@
 
 import { type ComponentType, useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
-import { FileText, KeyRound, MessageCircle } from "lucide-react"
+import { FileText, KeyRound, Menu, MessageCircle, UserRound } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
@@ -30,6 +30,15 @@ export default function ContratoPage() {
   const [contract, setContract] = useState<SubscriberContract | null>(null)
   const [activeSection, setActiveSection] = useState<ContractSection>("overview")
   const [isLoading, setIsLoading] = useState(true)
+  const [panelOpen, setPanelOpen] = useState(false)
+
+  useEffect(() => {
+    const searchParams = new URLSearchParams(window.location.search)
+
+    if (searchParams.get("section") === "renewal") {
+      setActiveSection("renewal")
+    }
+  }, [])
 
   useEffect(() => {
     const username = sessionStorage.getItem("iptv_username")
@@ -86,6 +95,23 @@ export default function ContratoPage() {
     ? `*${contract.fullName}*\nDesejo fazer a renovação do meu contrato.`
     : "Desejo fazer a renovação do meu contrato."
   const credentialsUrl = `https://wa.me/212693974294?text=${encodeURIComponent(credentialsMessage)}`
+  const changePlanMessage = contract?.fullName
+    ? `*${contract.fullName}*\nDesejo alterar o plano do meu contrato.`
+    : "Desejo alterar o plano do meu contrato."
+  const changePlanUrl = `https://wa.me/212693974294?text=${encodeURIComponent(changePlanMessage)}`
+  const handleBack = () => {
+    if (isExpired) {
+      sessionStorage.removeItem("iptv_username")
+      sessionStorage.removeItem("iptv_password")
+      localStorage.removeItem("synex_remember_session")
+      localStorage.removeItem("synex_login_username")
+      localStorage.removeItem("synex_login_password")
+      router.replace("/")
+      return
+    }
+
+    router.push("/dashboard")
+  }
   const sections: SectionItem[] = [
     { id: "overview", label: "Contrato", icon: FileText },
     { id: "access", label: "Acesso", icon: KeyRound },
@@ -110,10 +136,27 @@ export default function ContratoPage() {
       <div className="gradient-glow gradient-glow-3" style={{ bottom: "-260px", left: "25%" }} />
 
       <div className="relative z-10 flex min-h-screen" style={{ animation: "synex-fade-in 420ms ease-out both" }}>
-        <aside className="hidden w-72 shrink-0 border-r border-sidebar-border/40 bg-[linear-gradient(115deg,oklch(0.93_0_0)_0%,oklch(0.98_0_0)_58%,oklch(0.92_0_0)_100%)] lg:flex lg:flex-col">
-          <div className="flex h-[73px] flex-col justify-center border-b border-border/60 px-6">
-            <p className="truncate text-sm font-semibold text-foreground">{contract?.fullName ?? "Cliente"}</p>
-            <p className="text-xs text-muted-foreground">Meu contrato</p>
+        {panelOpen && (
+          <div
+            className="fixed inset-x-0 bottom-0 top-[73px] z-30 bg-foreground/20 lg:hidden"
+            onClick={() => setPanelOpen(false)}
+          />
+        )}
+
+        <aside
+          className={cn(
+            "fixed bottom-0 left-0 top-[73px] z-40 flex w-72 shrink-0 flex-col border-r border-sidebar-border/40 bg-[linear-gradient(115deg,oklch(0.93_0_0)_0%,oklch(0.98_0_0)_58%,oklch(0.92_0_0)_100%)] transition-transform duration-300 ease-out lg:sticky lg:top-0 lg:h-screen lg:translate-x-0",
+            panelOpen ? "translate-x-0" : "-translate-x-full",
+          )}
+        >
+          <div className="flex h-[73px] items-center gap-3 border-b border-border/60 px-6">
+            <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full border border-border/70 bg-background/70 text-foreground shadow-sm">
+              <UserRound className="h-5 w-5" />
+            </span>
+            <div className="min-w-0">
+              <p className="truncate text-sm font-semibold text-foreground">{contract?.fullName ?? "Cliente"}</p>
+              <p className="text-xs text-muted-foreground">Meu contrato</p>
+            </div>
           </div>
 
           <nav className="flex-1 space-y-1 p-4">
@@ -124,7 +167,10 @@ export default function ContratoPage() {
                 <button
                   key={section.id}
                   type="button"
-                  onClick={() => setActiveSection(section.id)}
+                  onClick={() => {
+                    setActiveSection(section.id)
+                    setPanelOpen(false)
+                  }}
                   className={cn(
                     "group flex w-full items-center justify-between gap-3 rounded-xl px-3 py-3 text-left text-sm font-medium transition-all duration-200",
                     activeSection === section.id
@@ -152,40 +198,26 @@ export default function ContratoPage() {
           </nav>
 
           <div className="border-t border-border/60 p-4">
-            <Button asChild variant="outline" className="h-10 w-full rounded-lg bg-background/70">
-              <a href="/dashboard">Voltar</a>
+            <Button
+              type="button"
+              variant="outline"
+              className="h-10 w-full rounded-lg bg-background/70"
+              onClick={handleBack}
+              aria-label={isExpired ? "Voltar para a pagina inicial" : "Voltar ao dashboard"}
+            >
+              Voltar
             </Button>
           </div>
         </aside>
 
         <section className="flex min-w-0 flex-1 flex-col">
-          <header className="min-h-[73px] border-b border-border/60 bg-background/35 backdrop-blur-xl" />
+          <header className="fixed left-0 right-0 top-0 z-30 flex min-h-[73px] items-center border-b border-border/60 bg-[linear-gradient(115deg,oklch(0.93_0_0)_0%,oklch(0.98_0_0)_42%,oklch(0.92_0_0)_100%)] px-4 lg:static lg:bg-background/35 lg:px-6 lg:backdrop-blur-xl">
+            <Button variant="ghost" size="icon" className="rounded-xl lg:hidden" onClick={() => setPanelOpen((open) => !open)}>
+              <Menu className="h-5 w-5" />
+            </Button>
+          </header>
 
-          <div className="border-b border-border/60 bg-background/25 p-3 lg:hidden">
-            <div className="grid grid-cols-3 gap-2">
-              {sections.map((section) => {
-                const Icon = section.icon
-
-                return (
-                  <button
-                    key={section.id}
-                    type="button"
-                    onClick={() => setActiveSection(section.id)}
-                    className={cn(
-                      "inline-flex items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
-                      activeSection === section.id ? "bg-foreground text-background" : "bg-background/70 text-muted-foreground",
-                    )}
-                    >
-                      <Icon className="h-4 w-4" />
-                      {section.label}
-                      <span className="rounded-full bg-current/10 px-1.5 py-0.5 text-[10px] font-semibold">1</span>
-                    </button>
-                )
-              })}
-            </div>
-          </div>
-
-          <div key={activeSection} className="flex-1 p-4 sm:p-6 lg:p-8" style={{ animation: "synex-fade-in-up 260ms ease-out both" }}>
+          <div key={activeSection} className="flex-1 p-3 pt-[85px] sm:p-6 sm:pt-[97px] lg:p-8" style={{ animation: "synex-fade-in-up 260ms ease-out both" }}>
             {isLoading ? (
               <section className="grid min-h-[28rem] place-items-center rounded-lg border border-border/70 bg-[linear-gradient(135deg,oklch(0.99_0_0)_0%,oklch(0.97_0_0)_50%,oklch(0.94_0_0)_100%)] shadow-sm">
                 <div className="text-center">
@@ -245,6 +277,11 @@ export default function ContratoPage() {
                       Renovar contrato
                     </a>
                   </Button>
+                  <Button asChild variant="outline" className="h-11 rounded-lg bg-background/70 px-6 hover:bg-black hover:text-white">
+                    <a href={changePlanUrl} target="_blank" rel="noopener noreferrer">
+                      Alterar plano
+                    </a>
+                  </Button>
                 </div>
               </section>
             )}
@@ -295,7 +332,7 @@ function isContractExpired(activationDate: string | null, plan: string | null) {
 
   const expirationDate = new Date(startDate)
   expirationDate.setMonth(expirationDate.getMonth() + durationInMonths)
-  expirationDate.setHours(23, 59, 59, 999)
+  expirationDate.setHours(0, 0, 0, 0)
 
-  return Date.now() > expirationDate.getTime()
+  return Date.now() >= expirationDate.getTime()
 }

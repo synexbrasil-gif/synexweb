@@ -44,10 +44,12 @@ export async function POST(request: Request) {
   const credentials = (await request.json()) as {
     username?: string
     password?: string
+    rememberSession?: boolean
   }
 
   const username = credentials.username?.trim() ?? ""
   const password = credentials.password ?? ""
+  const rememberSession = credentials.rememberSession === true
   const isDefaultAdmin = username === CONTRACT_USERNAME && password === CONTRACT_PASSWORD
   const adminUser = isDefaultAdmin ? null : await authenticateAdminUser(username, password).catch(() => null)
 
@@ -62,23 +64,21 @@ export async function POST(request: Request) {
       role: adminUser?.role ?? "Admin",
     },
   })
-  response.cookies.set(CONTRACT_AUTH_COOKIE, CONTRACT_AUTH_VALUE, {
+  const cookieOptions = {
     httpOnly: true,
-    sameSite: "lax",
+    sameSite: "lax" as const,
     path: "/",
-    maxAge: 60 * 60 * 8,
+    ...(rememberSession ? { maxAge: 60 * 60 * 24 * 30 } : {}),
+  }
+
+  response.cookies.set(CONTRACT_AUTH_COOKIE, CONTRACT_AUTH_VALUE, {
+    ...cookieOptions,
   })
   response.cookies.set(ADMIN_NAME_COOKIE, adminUser?.fullName ?? "Synex Brasil", {
-    httpOnly: true,
-    sameSite: "lax",
-    path: "/",
-    maxAge: 60 * 60 * 8,
+    ...cookieOptions,
   })
   response.cookies.set(ADMIN_ROLE_COOKIE, adminUser?.role ?? "Admin", {
-    httpOnly: true,
-    sameSite: "lax",
-    path: "/",
-    maxAge: 60 * 60 * 8,
+    ...cookieOptions,
   })
 
   return response

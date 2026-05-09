@@ -34,8 +34,8 @@ export function Hero() {
             <FadeIn direction="up" delay={300} duration={600} loadOnScroll={false}>
               <div className="mt-14 sm:mt-8 mb-12 lg:mb-0 flex flex-col sm:flex-row gap-4">
                 <Button size="lg" asChild className="h-12 px-8 text-base shadow-lg hover:shadow-xl transition-all hover:scale-[1.02]">
-                  <a href="https://wa.me/212693974294?text=Ol%C3%A1%2C%20quero%20fazer%20um%20teste%20da%20Synex." target="_blank" rel="noopener noreferrer">
-                    Solicitar teste
+                  <a href="https://wa.me/212693974294?text=Ol%C3%A1%2C%20quero%20assinar%20a%20Synex." target="_blank" rel="noopener noreferrer">
+                    Assinar agora
                   </a>
                 </Button>
                 <Button size="lg" variant="outline" asChild className="h-12 px-8 text-base hover:bg-muted transition-all">

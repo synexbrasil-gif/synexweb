@@ -30,7 +30,9 @@ import {
   Settings,
   RotateCcw,
   Captions,
+  Calendar,
   PictureInPicture2,
+  TvMinimal,
   X
 } from "lucide-react"
 
@@ -81,7 +83,7 @@ function isValidAccountInfo(accountInfo: AccountInfo | null) {
   return !["disabled", "banned", "expired"].includes(status)
 }
 
-const CHANNEL_FILTER_TERMS = ["ppv", "pay per view", "pay-per-view", "disney", "paramount", "nba", "combate", "premiere", "amazon", "espn", "hbo", "cazetv", "caze tv", "dazn", "sportv", "ge tv", "ge fast", "globo", "jogos do dia", "jogos de hoje"]
+const CHANNEL_FILTER_TERMS = ["ppv", "pay per view", "pay-per-view", "disney", "paramount", "nba", "combate", "premiere", "amazon", "espn", "hbo", "cazetv", "caze tv", "dazn", "sportv", "ge tv", "ge fast", "g.e tv", "ge-tv", "getv", "globo", "jogos do dia", "jogos de hoje"]
 const BLACK_LOGO_TERMS = ["ppv", "pay per view", "pay-per-view", "disney", "paramount", "nba", "combate", "dazn", "esporte", "esportes"]
 const LARGE_LOGO_TERMS = ["disney", "paramount", "dazn", "combate", "nba", "cazetv", "caze tv"]
 const PPV_CATEGORY_TERMS = ["ppv", "pay per view", "pay-per-view"]
@@ -90,10 +92,28 @@ const MOVIES_SERIES_CATEGORY_TERMS = ["filmes e series", "filmes series", "filme
 const HIDDEN_CATEGORY_TERMS = ["adulto", "adultos", "adult", "18+", "+18", "xxx", "porn", "porno", "erotico", "eroticos", "esporte", "esportes", "variedades", "noticias"]
 const SYNTHETIC_CATEGORY_TERMS = ["cazetv", "caze tv", "dazn"]
 const EXCLUDED_CHANNEL_TERMS = ["goat", "ufc"]
+const IMPORTANT_GLOBO_CHANNEL_TERMS = [
+  "globo hd",
+  "globo fhd",
+  "globo sp",
+  "globo sao paulo",
+  "globo rj",
+  "globo rio",
+  "globo rio de janeiro",
+  "globonews",
+  "globo news",
+  "multishow",
+  "gnt",
+  "viva",
+  "gloob",
+  "canal brasil",
+  "futura",
+]
 const SYNEX_SPORTS_CATEGORY_ID = "__synex_esportes__"
 const SYNEX_HBO_MAX_CATEGORY_ID = "__synex_hbo_max__"
 const SYNEX_CAZETV_CATEGORY_ID = "__synex_cazetv__"
 const SYNEX_DAZN_CATEGORY_ID = "__synex_dazn__"
+const SYNEX_GE_TV_CATEGORY_ID = "__synex_ge_tv__"
 const SYNEX_GLOBO_CATEGORY_ID = "__synex_globo__"
 const SYNEX_DISNEY_CATEGORY_ID = "__synex_disney__"
 const SYNEX_PARAMOUNT_CATEGORY_ID = "__synex_paramount__"
@@ -103,6 +123,7 @@ const SYNEX_AMAZON_CATEGORY_ID = "__synex_amazon__"
 const SYNEX_SPORTV_CATEGORY_ID = "__synex_sportv__"
 const SYNEX_COMBATE_CATEGORY_ID = "__synex_combate__"
 const SYNEX_NBA_CATEGORY_ID = "__synex_nba__"
+const SPORTS_AGENDA_LOGO_SRC = "https://www.agendaesportiva.com.br/lib/img/portal/logo/6/header-alt.png"
 const SPORTS_AGENDA_CATEGORY_TERMS = ["jogos do dia", "jogos de hoje"]
 const SERVER_SPECIFIC_DASHBOARD_FIXES = new Set(["phspr.pro", "ph1.fun"])
 
@@ -151,6 +172,11 @@ function isExcludedChannel(...values: string[]) {
   return matchesTerms(EXCLUDED_CHANNEL_TERMS, ...values)
 }
 
+function isImportantGloboChannel(channelName: string) {
+  const normalizedName = normalizeFilterText(channelName).replace(/\s+/g, " ").trim()
+  return normalizedName === "globo" || IMPORTANT_GLOBO_CHANNEL_TERMS.some((term) => normalizedName.includes(term)) || /\bge\s*tv\b/.test(normalizedName)
+}
+
 function getSportsMaxChannelNumber(...values: string[]) {
   const haystack = normalizeFilterText(values.join(" "))
   if (!/\bmax\b/.test(haystack)) return null
@@ -176,18 +202,34 @@ function getNumberedChannelMatch(name: string, pattern: RegExp, maxNumber: numbe
   return String(channelNumber).padStart(2, "0")
 }
 
-function getRequestedChannelMapping(name: string, globoCategoryId: string) {
-  const normalizedName = normalizeFilterText(name)
+function getGeTvChannelMapping(name: string, categoryName: string) {
+  const normalizedSource = normalizeFilterText(`${name} ${categoryName}`).replace(/[_-]+/g, " ")
+  const geMatch = normalizedSource.match(/\b(?:g[\s.]*e\s*(tv|fast)|ge\s*(tv|fast)|getv)\b/)
+  const categoryIsGeTv = /\b(?:g[\s.]*e\s*tv|ge\s*tv|getv)\b/.test(normalizedSource)
+
+  if (!geMatch && !categoryIsGeTv) return null
+
+  const geService = geMatch?.[1] ?? geMatch?.[2]
+  const serviceName = geService === "fast" ? "GE Fast" : "GE TV"
+  const quality = normalizedSource.match(/\b(4k|uhd|fhd|hd|sd)\b/)?.[1]?.toUpperCase()
+  const channelNumber = normalizedSource.match(/\b0?([1-9])\b/)?.[1]
+  const suffix = quality ?? (channelNumber ? channelNumber.padStart(2, "0") : "")
+
+  return {
+    categoryId: SYNEX_GE_TV_CATEGORY_ID,
+    categoryName: "GE TV",
+    channelName: suffix ? `${serviceName} ${suffix}` : serviceName,
+  }
+}
+
+function getRequestedChannelMapping(name: string, categoryName = "") {
+  const geTvChannelMapping = getGeTvChannelMapping(name, categoryName)
   const cazeTvNumber = getNumberedChannelMatch(name, /\bcaze\s*tv\b\D*0?([1-3])\b/, 3)
   const daznNumber = getNumberedChannelMatch(name, /\bdazn\b\D*0?([1-3])\b/, 3)
-  const geVariant = normalizedName.match(/\bge\s*(tv|fast)\b.*\b(fhd|hd|sd)\b/)
 
+  if (geTvChannelMapping) return geTvChannelMapping
   if (cazeTvNumber) return { categoryId: SYNEX_CAZETV_CATEGORY_ID, categoryName: "CazeTV", channelName: `CazeTV ${cazeTvNumber}` }
   if (daznNumber) return { categoryId: SYNEX_DAZN_CATEGORY_ID, categoryName: "Dazn", channelName: `DAZN ${Number(daznNumber)}` }
-  if (geVariant) {
-    const serviceName = geVariant[1] === "fast" ? "GE Fast" : "GE TV"
-    return { categoryId: globoCategoryId, categoryName: "Globo", channelName: `${serviceName} ${geVariant[2].toUpperCase()}` }
-  }
   if (matchesTerms(["premiere"], name)) return { categoryId: SYNEX_PREMIERE_CATEGORY_ID, categoryName: "Premiere", channelName: formatChannelNameFromRaw(name) }
   if (matchesTerms(["combate"], name)) return { categoryId: SYNEX_COMBATE_CATEGORY_ID, categoryName: "Combate", channelName: formatChannelNameFromRaw(name) }
   if (matchesTerms(["nba"], name)) return { categoryId: SYNEX_NBA_CATEGORY_ID, categoryName: "NBA", channelName: formatChannelNameFromRaw(name) }
@@ -283,6 +325,7 @@ export default function DashboardPage() {
   const [error, setError] = useState<string | null>(null)
   const [accountInfo, setAccountInfo] = useState<AccountInfo | null>(null)
   const [subscriberFullName, setSubscriberFullName] = useState("")
+  const [subscriberActivationDate, setSubscriberActivationDate] = useState("")
   const [hasSubscriberContract, setHasSubscriberContract] = useState(false)
   const [accountMenuOpen, setAccountMenuOpen] = useState(false)
   const [loadingChannel, setLoadingChannel] = useState(false)
@@ -301,8 +344,8 @@ export default function DashboardPage() {
   const accountDisplayName = subscriberFullName || userInfo?.username || username
   const accountStatus = formatAccountStatus(userInfo?.status)
   const planName = formatPlanName(userInfo)
-  const expirationDate = formatAccountDate(userInfo?.exp_date)
   const createdDate = formatAccountDate(userInfo?.created_at)
+  const activationDateLabel = subscriberActivationDate || createdDate
   const activeConnections = Number(userInfo?.active_cons ?? 0)
   const maxConnections = Number(userInfo?.max_connections ?? 0)
   const connectionLabel = maxConnections > 0 ? `${activeConnections}/${maxConnections}` : `${activeConnections}`
@@ -371,6 +414,12 @@ export default function DashboardPage() {
           return
         }
 
+        if (data.isExpired) {
+          setIsLoading(false)
+          router.replace("/contrato?section=renewal")
+          return
+        }
+
         if (String(data.iptvUsername ?? "").trim() === "0") {
           setError("Seu contrato ainda não foi ativado. Entre em contato com o suporte para liberar o acesso.")
           setIsLoading(false)
@@ -416,14 +465,20 @@ export default function DashboardPage() {
 
         if (!response.ok) return
 
-        const data = (await response.json()) as { contractId?: string | null; fullName?: string | null }
+        const data = (await response.json()) as {
+          activationDate?: string | null
+          contractId?: string | null
+          fullName?: string | null
+        }
         if (!cancelled) {
           setSubscriberFullName(data.fullName?.trim() ?? "")
+          setSubscriberActivationDate(data.activationDate?.trim() ?? "")
           setHasSubscriberContract(Boolean(data.contractId?.trim()))
         }
       } catch {
         if (!cancelled) {
           setSubscriberFullName("")
+          setSubscriberActivationDate("")
           setHasSubscriberContract(false)
         }
       }
@@ -567,14 +622,13 @@ export default function DashboardPage() {
           if (serverSpecificFixes && isServerSpecificExcludedChannel(channel.name)) return []
           if (isExcludedChannel(channel.name, categoryName)) return []
 
-          if (isMoviesSeriesCategory(categoryName)) return []
-          const isSportvChannel = matchesTerms(["sportv"], channel.name, categoryName)
-          if (isHiddenCategory(categoryName) && !isSportvChannel) return []
-
           const isPpvChannel = ppvCategoryIds.has(channel.category_id) || isPpvCategory(channel.name, categoryName)
           const sportsMaxChannelNumber = getSportsMaxChannelNumber(channel.name)
           const isSportsMaxChannel = Boolean(sportsMaxChannelNumber)
-          const requestedChannelMapping = getRequestedChannelMapping(channel.name, globoCategoryId)
+          const requestedChannelMapping = getRequestedChannelMapping(channel.name, categoryName)
+          if (isMoviesSeriesCategory(categoryName) && !requestedChannelMapping) return []
+          const isSportvChannel = matchesTerms(["sportv"], channel.name, categoryName)
+          if (isHiddenCategory(categoryName) && !isSportvChannel && !requestedChannelMapping) return []
           const canonicalCategory = getCanonicalCategory(categoryName)
           const normalizedChannel = requestedChannelMapping
             ? { ...channel, category_id: requestedChannelMapping.categoryId, name: requestedChannelMapping.channelName }
@@ -590,6 +644,7 @@ export default function DashboardPage() {
           const normalizedCategoryName = requestedChannelMapping?.categoryName ?? (isSportvChannel ? "SporTV" : isSportsMaxChannel ? "HBO Max" : isPpvChannel ? "Esportes" : canonicalCategory?.name ?? categoryName)
           if (isHiddenCategory(normalizedCategoryName) && !isSportvChannel) return []
           if (isExcludedChannel(normalizedChannel.name, normalizedCategoryName)) return []
+          if (normalizedChannel.category_id === SYNEX_GLOBO_CATEGORY_ID && !isImportantGloboChannel(normalizedChannel.name)) return []
 
           const isAllowed = matchesChannelFilter(normalizedChannel.name, normalizedCategoryName)
 
@@ -647,6 +702,7 @@ export default function DashboardPage() {
           { category_id: SYNEX_NBA_CATEGORY_ID, category_name: "NBA", parent_id: 0 },
           { category_id: SYNEX_CAZETV_CATEGORY_ID, category_name: "CazeTV", parent_id: 0 },
           { category_id: SYNEX_DAZN_CATEGORY_ID, category_name: "Dazn", parent_id: 0 },
+          { category_id: SYNEX_GE_TV_CATEGORY_ID, category_name: "GE TV", parent_id: 0 },
         ]
 
         for (const category of syntheticCategories) {
@@ -720,6 +776,9 @@ export default function DashboardPage() {
       setAccountInfo(bestServer.accountInfo)
       setCategories(bestServer.categories)
       setChannels(bestServer.channels)
+      setSelectedCategory(
+        bestServer.categories.find((category) => category.category_id === SYNEX_AMAZON_CATEGORY_ID) ?? null,
+      )
       setIsLoading(false)
       window.clearTimeout(connectionTimeout)
     }
@@ -1249,6 +1308,7 @@ export default function DashboardPage() {
       .trim()
       .toLowerCase()
     if (formatted.includes("sbt")) return "SBT"
+    if (formatted.includes("ge tv") || formatted.includes("getv")) return "GE TV"
     if (formatted.includes("cazetv") || formatted.includes("caze tv")) return "CazeTV"
     if (formatted.includes("nba")) return "NBA"
     if (formatted.includes("combate")) return "Combate"
@@ -1279,7 +1339,7 @@ export default function DashboardPage() {
     const categoryName = categoryNameById.get(channel.category_id) ?? ""
     const haystack = `${channel.name} ${formattedName} ${categoryName}`.toLowerCase()
 
-    if (formatCategoryName(categoryName) === "Agenda Esportiva") return "https://i.ibb.co/kVTwX00n/3.png"
+    if (formatCategoryName(categoryName) === "Agenda Esportiva") return SPORTS_AGENDA_LOGO_SRC
     if (haystack.includes("cazetv") || haystack.includes("caze tv")) return "https://i.ibb.co/Ld7kdJn6/cazetv.png"
     if (haystack.includes("hbo")) return "https://i.ibb.co/twR0Q0hd/hbo.png"
     if (haystack.includes("globo")) return "https://i.ibb.co/Gv4k5Gcr/globo.png"
@@ -1300,11 +1360,11 @@ export default function DashboardPage() {
   function getChannelImageClass(channel: Channel, formattedName: string, fallbackClass: string) {
     const categoryName = categoryNameById.get(channel.category_id) ?? ""
     if (formatCategoryName(categoryName) === "Agenda Esportiva") {
-      return "p-3"
+      return "p-8 brightness-0"
     }
 
     if (matchesTerms(["paramount"], channel.name, formattedName, categoryName)) {
-      return "p-3 brightness-0"
+      return "p-8 brightness-0"
     }
 
     if (matchesTerms(["dazn"], channel.name, formattedName, categoryName)) {
@@ -1365,44 +1425,52 @@ export default function DashboardPage() {
   // Error screen
   if (error && !workingServer) {
     return (
-      <div className="min-h-screen relative overflow-hidden flex items-center justify-center px-4">
-        <div className="absolute inset-0 bg-gradient-to-b from-muted via-background/70 to-muted/80 pointer-events-none" />
-        <div className="gradient-glow gradient-glow-1 opacity-70" style={{ top: '-180px', left: '-120px' }} />
-        <div className="gradient-glow gradient-glow-2 opacity-70" style={{ top: '220px', right: '-160px' }} />
-        <div className="gradient-glow gradient-glow-3 opacity-60" style={{ bottom: '-220px', left: '20%' }} />
+      <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[linear-gradient(115deg,oklch(0.93_0_0)_0%,oklch(0.98_0_0)_42%,oklch(0.92_0_0)_100%)] px-4 py-8 text-foreground">
+        <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(115deg,oklch(0.93_0_0)_0%,oklch(0.98_0_0)_42%,oklch(0.92_0_0)_100%)]" />
+        <div className="gradient-glow gradient-glow-1" style={{ top: "-220px", left: "-180px" }} />
+        <div className="gradient-glow gradient-glow-2" style={{ top: "160px", right: "-220px" }} />
+        <div className="gradient-glow gradient-glow-3" style={{ bottom: "-260px", left: "25%" }} />
 
-        <FadeIn
-          direction="up"
-          duration={500}
-          className="relative z-10 w-full max-w-md"
-        >
-          <div className="flex flex-col items-center text-center">
-            <div className="mb-6 flex h-20 w-20 items-center justify-center rounded-full border border-foreground/20 bg-foreground shadow-lg shadow-foreground/10">
-              <X className="h-9 w-9 text-background" />
-            </div>
-            <h1 className="text-xl font-semibold tracking-tight text-foreground">
+        <FadeIn direction="up" duration={500} className="relative z-10 w-full max-w-lg">
+          <section className="overflow-hidden rounded-lg border border-border/70 bg-[linear-gradient(135deg,oklch(0.99_0_0)_0%,oklch(0.97_0_0)_52%,oklch(0.94_0_0)_100%)] shadow-2xl shadow-foreground/10">
+            <div className="border-b border-border/60 p-6 text-center sm:p-8">
+              <p className="mt-6 text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                Acesso indisponível
+              </p>
+              <h1 className="mt-2 text-2xl font-bold tracking-normal text-foreground">
               Não foi possível entrar
-            </h1>
-            <p className="mt-3 max-w-sm text-sm leading-relaxed text-muted-foreground">{error}</p>
-          </div>
+              </h1>
+              <p className="mx-auto mt-3 max-w-sm text-sm leading-6 text-muted-foreground">
+                Não foi possível conectar sua conta no momento.
+              </p>
+            </div>
 
-          <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-            <Button
-              onClick={retryConnection}
-              className="h-12 flex-1 gap-2 rounded-full bg-foreground px-6 text-background shadow-lg shadow-foreground/10 transition-all hover:scale-[1.02] hover:bg-foreground/90 hover:shadow-xl"
-            >
-              <RefreshCw className="w-4 h-4" />
-              Tentar novamente
-            </Button>
-            <Button
-              onClick={handleLogout}
-              variant="outline"
-              className="h-12 flex-1 gap-2 rounded-full border-border bg-background/80 px-6 backdrop-blur-sm transition-all hover:scale-[1.02] hover:bg-muted"
-            >
-              <LogOut className="w-4 h-4" />
-              Alterar dados
-            </Button>
-          </div>
+            <div className="space-y-5 p-5 sm:p-6">
+              <div className="rounded-lg border border-border/70 bg-background/65 p-4">
+                <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                  Aviso
+                </p>
+                <p className="mt-2 text-sm leading-6 text-foreground">
+                  Verifique seus dados de acesso ou tente novamente em alguns instantes.
+                </p>
+              </div>
+
+              <div className="grid gap-3 sm:grid-cols-2">
+                <Button
+                  onClick={retryConnection}
+                  className="h-12 rounded-lg bg-foreground px-6 text-background shadow-lg shadow-foreground/10 transition-all hover:scale-[1.02] hover:bg-foreground/90 hover:shadow-xl"
+                >
+                  Tentar novamente
+                </Button>
+                <Button
+                  onClick={handleLogout}
+                  className="h-12 rounded-lg bg-foreground px-6 text-background shadow-lg shadow-foreground/10 transition-all hover:scale-[1.02] hover:bg-foreground/90 hover:shadow-xl"
+                >
+                  Alterar dados
+                </Button>
+              </div>
+            </div>
+          </section>
         </FadeIn>
       </div>
     )
@@ -1420,31 +1488,31 @@ export default function DashboardPage() {
         panelOpen ? "bg-[linear-gradient(115deg,oklch(0.93_0_0)_0%,oklch(0.98_0_0)_58%,oklch(0.92_0_0)_100%)] lg:bg-transparent" : "bg-transparent"
       )}>
         <div className="flex h-full items-center justify-between gap-3 px-4 lg:px-6">
-          <div ref={accountMenuRef} className="relative flex shrink-0 items-center gap-3">
-            <Button variant="ghost" size="icon" className="rounded-xl lg:hidden" onClick={() => setPanelOpen(true)}>
+          <div ref={accountMenuRef} className="relative flex w-full shrink-0 items-center gap-3 lg:w-auto">
+            <Button variant="ghost" size="icon" className="rounded-xl lg:hidden" onClick={() => setPanelOpen((open) => !open)}>
               <Menu className="h-5 w-5" />
             </Button>
             <button
               type="button"
               className={cn(
-                "flex items-center gap-3 rounded-xl px-2 py-1.5 text-left transition-colors hover:bg-secondary",
+                "ml-auto flex max-w-[calc(100vw-5.5rem)] flex-row-reverse items-center gap-3 rounded-xl px-2 py-1.5 text-left transition-colors hover:bg-secondary lg:ml-0 lg:max-w-none lg:flex-row",
                 accountMenuOpen && "bg-secondary",
               )}
               aria-label="Abrir dados da conta"
               aria-expanded={accountMenuOpen}
               onClick={() => setAccountMenuOpen((open) => !open)}
             >
-              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-foreground/10 text-foreground">
+              <div className="grid h-10 w-10 shrink-0 place-items-center rounded-full border border-border/70 bg-background/70 text-foreground shadow-sm">
                 <User className="h-5 w-5" />
               </div>
-              <div className="flex flex-col justify-center">
-                <p className="text-sm font-semibold text-foreground">Synex Brasil</p>
+              <div className="hidden min-w-0 flex-col justify-center lg:flex">
+                <p className="truncate text-sm font-semibold text-foreground">{accountDisplayName}</p>
                 <p className="text-xs text-muted-foreground">Reprodução de conteúdo</p>
               </div>
             </button>
             {accountMenuOpen && (
               <div
-                className="absolute left-0 top-14 z-[60] w-[min(20rem,calc(100vw-2rem))] origin-top-left overflow-hidden rounded-2xl border border-border/60 bg-background/95 shadow-2xl shadow-foreground/15 backdrop-blur-xl"
+                className="absolute right-0 top-14 z-[60] w-[min(20rem,calc(100vw-2rem))] origin-top-right overflow-hidden rounded-2xl border border-border/60 bg-background/95 shadow-2xl shadow-foreground/15 backdrop-blur-xl lg:left-0 lg:right-auto lg:origin-top-left"
                 style={{ animation: "synex-fade-in-down 180ms ease-out both" }}
               >
                 <div className="border-b border-border/60 bg-[linear-gradient(135deg,oklch(0.98_0_0),oklch(0.93_0_0))] p-4">
@@ -1456,9 +1524,6 @@ export default function DashboardPage() {
                       <p className="truncate text-sm font-semibold text-foreground">
                         {accountDisplayName}
                       </p>
-                      {subscriberFullName && (
-                        <p className="mt-0.5 truncate text-xs text-muted-foreground">{userInfo?.username ?? username}</p>
-                      )}
                       <p className="mt-1 text-xs font-medium text-primary">{accountStatus}</p>
                     </div>
                   </div>
@@ -1477,8 +1542,8 @@ export default function DashboardPage() {
                   </div>
 
                   <div className="rounded-xl border border-border/60 bg-card/70 p-3">
-                    <p className="text-xs font-medium text-muted-foreground">Validade</p>
-                    <p className="mt-1 text-sm font-semibold text-card-foreground">{expirationDate}</p>
+                    <p className="text-xs font-medium text-muted-foreground">Data de ativação</p>
+                    <p className="mt-1 text-sm font-semibold text-card-foreground">{activationDateLabel}</p>
                   </div>
 
                   {hasSubscriberContract && (
@@ -1522,41 +1587,13 @@ export default function DashboardPage() {
           panelOpen ? "translate-x-0" : "-translate-x-full"
         )}
       >
-        <div className="flex h-full flex-col p-4">
-          <div className="mb-4 flex items-center justify-between lg:hidden">
-            <span className="text-sm font-medium text-muted-foreground">Menu</span>
-            <Button variant="ghost" size="icon" className="rounded-xl" onClick={() => setPanelOpen(false)}>
-              <X className="h-4 w-4" />
-            </Button>
-          </div>
-
-          <nav className="flex min-h-0 flex-1 flex-col">
+          <div className="flex h-full flex-col p-4">
+            <nav className="flex min-h-0 flex-1 flex-col">
             <div className="px-3 pb-1 pt-1">
               <p className="text-[11px] font-semibold uppercase text-muted-foreground/70">
                 Categorias
               </p>
             </div>
-
-            <button
-              onClick={() => {
-                setSelectedCategory(null)
-                setPanelOpen(false)
-              }}
-              className={cn(
-                "flex w-full items-center justify-between gap-3 rounded-xl px-3 py-3 text-sm font-medium transition-all duration-200",
-                !selectedCategory
-                  ? "bg-[linear-gradient(135deg,oklch(0.99_0_0)_0%,oklch(0.94_0_0)_58%,oklch(0.90_0_0)_100%)] text-sidebar-accent-foreground shadow-md shadow-foreground/5"
-                  : "text-sidebar-foreground/70 hover:bg-white/35 hover:text-sidebar-foreground hover:shadow-sm"
-              )}
-            >
-              <span className="truncate">Todos os Canais</span>
-              <span className={cn(
-                "rounded-full px-2 py-0.5 text-[10px] font-semibold",
-                !selectedCategory ? "bg-foreground/10 text-foreground" : "bg-foreground/5 text-muted-foreground"
-              )}>
-                {filteredCategoryChannelCount}
-              </span>
-            </button>
 
             {sportsAgendaCategory && (
               <button
@@ -1571,7 +1608,10 @@ export default function DashboardPage() {
                     : "text-sidebar-foreground/70 hover:bg-white/35 hover:text-sidebar-foreground hover:shadow-sm"
                 )}
               >
-                <span className="truncate">{formatCategoryName(sportsAgendaCategory.category_name)}</span>
+                <span className="flex min-w-0 items-center gap-2">
+                  <Calendar className="h-4 w-4 shrink-0" />
+                  <span className="truncate">{formatCategoryName(sportsAgendaCategory.category_name)}</span>
+                </span>
                 <span className={cn(
                   "rounded-full px-2 py-0.5 text-[10px] font-semibold",
                   selectedCategory?.category_id === sportsAgendaCategory.category_id ? "bg-foreground/10 text-foreground" : "bg-foreground/5 text-muted-foreground"
@@ -1603,7 +1643,10 @@ export default function DashboardPage() {
                         : "text-sidebar-foreground/70 hover:bg-white/35 hover:text-sidebar-foreground hover:shadow-sm"
                     )}
                   >
-                    <span className="truncate">{formatCategoryName(cat.category_name)}</span>
+                    <span className="flex min-w-0 items-center gap-2">
+                      <TvMinimal className="h-4 w-4 shrink-0" />
+                      <span className="truncate">{formatCategoryName(cat.category_name)}</span>
+                    </span>
                     <span className={cn(
                       "rounded-full px-2 py-0.5 text-[10px] font-semibold",
                       isActive ? "bg-foreground/10 text-foreground" : "bg-foreground/5 text-muted-foreground"
@@ -1774,10 +1817,12 @@ export default function DashboardPage() {
                   {filteredChannels.map((channel) => {
                     const isActive = selectedChannel?.stream_id === channel.stream_id
                     const channelName = formatChannelName(channel.name)
-                    const streamIconSrc = getStreamIconSrc(channel.stream_icon)
                     const categoryName = categoryNameById.get(channel.category_id) ?? ""
-                    const preferServerLogo = Boolean(streamIconSrc) && shouldPreferServerLogo(channel.name, channelName, categoryName)
-                    const logoSrc = preferServerLogo ? "" : getChannelLogoSrc(channel, channelName)
+                    const isSportsAgendaChannel =
+                      channel.category_id === sportsAgendaCategory?.category_id || isSportsAgendaCategory(categoryName)
+                    const streamIconSrc = isSportsAgendaChannel ? "" : getStreamIconSrc(channel.stream_icon)
+                    const preferServerLogo = !isSportsAgendaChannel && Boolean(streamIconSrc) && shouldPreferServerLogo(channel.name, channelName, categoryName)
+                    const logoSrc = isSportsAgendaChannel ? SPORTS_AGENDA_LOGO_SRC : preferServerLogo ? "" : getChannelLogoSrc(channel, channelName)
                     const logoClass = logoSrc ? getChannelImageClass(channel, channelName, getChannelLogoClass(logoSrc)) : ""
                     const streamIconClass = getChannelImageClass(channel, channelName, "p-8")
 
@@ -1786,7 +1831,16 @@ export default function DashboardPage() {
                         <div className="relative aspect-video overflow-hidden bg-[linear-gradient(180deg,oklch(0.98_0_0)_0%,oklch(0.95_0_0)_58%,oklch(0.92_0_0)_100%)]">
                           {logoSrc ? (
                             <div className="flex h-full w-full items-center justify-center bg-transparent transition-transform duration-500 group-hover:scale-110">
-                              <img src={logoSrc} alt={channelName} className={cn("h-full w-full object-contain", logoClass)} />
+                              <img
+                                src={logoSrc}
+                                alt={channelName}
+                                className={cn(
+                                  "object-contain",
+                                  isSportsAgendaChannel ? "h-auto w-[72%]" : "h-full w-full",
+                                  logoClass,
+                                )}
+                                style={isSportsAgendaChannel ? { filter: "brightness(0)" } : undefined}
+                              />
                             </div>
                           ) : streamIconSrc ? (
                             <img src={streamIconSrc} alt={channelName} className={cn("h-full w-full object-contain transition-transform duration-500 group-hover:scale-110", streamIconClass)} />

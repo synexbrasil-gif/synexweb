@@ -3,6 +3,7 @@
 import { FormEvent, useEffect, useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
 import {
+  Menu,
   Eye,
   EyeOff,
   CreditCard,
@@ -13,7 +14,6 @@ import {
   Search,
   Trash2,
   UserCog,
-  UserRound,
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -63,6 +63,8 @@ type AdminSession = {
   role: string
 }
 
+type AdminSection = "contracts" | "logins" | "plans" | "integrations" | "admins"
+
 function parseCurrencyValue(value: string) {
   const price = value.trim()
   if (!price) return Number.NaN
@@ -77,7 +79,8 @@ function parseCurrencyValue(value: string) {
 export default function AdminPage() {
   const router = useRouter()
   const { notify } = useNotification()
-  const [activeSection, setActiveSection] = useState<"contracts" | "logins" | "plans" | "integrations" | "admins">("contracts")
+  const [activeSection, setActiveSection] = useState<AdminSection>("contracts")
+  const [panelOpen, setPanelOpen] = useState(false)
   const [contracts, setContracts] = useState<Contract[]>([])
   const [credentialDrafts, setCredentialDrafts] = useState<Record<string, { username: string; password: string }>>({})
   const [savingCredentialId, setSavingCredentialId] = useState<string | null>(null)
@@ -114,8 +117,27 @@ export default function AdminPage() {
   const [adminError, setAdminError] = useState("")
   const [currentAdmin, setCurrentAdmin] = useState<AdminSession>({ fullName: "Synex Brasil", role: "" })
   const [isLoadingAdminSession, setIsLoadingAdminSession] = useState(true)
+  const [isLoggingOut, setIsLoggingOut] = useState(false)
 
   const canManageAdminUsers = ["admin", "ceo"].includes(currentAdmin.role.trim().toLowerCase())
+  const canAccessFullAdmin = canManageAdminUsers
+
+  const selectSection = (section: AdminSection) => {
+    setActiveSection(section)
+    setPanelOpen(false)
+  }
+
+  const handleLogout = async () => {
+    setIsLoggingOut(true)
+
+    try {
+      await fetch("/api/contrato-auth", { method: "DELETE" })
+      router.replace("/contrato/login?next=/admin")
+    } catch {
+      notify({ title: "Nao foi possivel sair", description: "Tente novamente em alguns instantes.", tone: "error" })
+      setIsLoggingOut(false)
+    }
+  }
 
   useEffect(() => {
     const loadAdminSession = async () => {
@@ -282,10 +304,10 @@ export default function AdminPage() {
   }, [canManageAdminUsers, router])
 
   useEffect(() => {
-    if (!canManageAdminUsers && activeSection === "admins") {
+    if (!canAccessFullAdmin && activeSection !== "contracts" && activeSection !== "logins") {
       setActiveSection("contracts")
     }
-  }, [activeSection, canManageAdminUsers])
+  }, [activeSection, canAccessFullAdmin])
 
   const filteredContracts = useMemo(() => {
     const query = searchQuery.trim().toLowerCase()
@@ -717,8 +739,20 @@ export default function AdminPage() {
       <div className="gradient-glow gradient-glow-3" style={{ bottom: "-260px", left: "25%" }} />
 
       <div className="relative z-10 flex min-h-screen">
-        <aside className="hidden w-72 shrink-0 border-r border-sidebar-border/40 bg-[linear-gradient(115deg,oklch(0.93_0_0)_0%,oklch(0.98_0_0)_58%,oklch(0.92_0_0)_100%)] lg:flex lg:flex-col">
-          <div className="flex h-[73px] flex-col justify-center border-b border-border/60 px-6">
+        {panelOpen && (
+          <div
+            className="fixed inset-x-0 bottom-0 top-[73px] z-30 bg-foreground/20 lg:hidden"
+            onClick={() => setPanelOpen(false)}
+          />
+        )}
+
+        <aside
+          className={cn(
+            "fixed bottom-0 left-0 top-[73px] z-40 flex w-72 max-w-[calc(100vw-2rem)] shrink-0 flex-col overflow-hidden border-r border-sidebar-border/40 bg-[linear-gradient(115deg,oklch(0.93_0_0)_0%,oklch(0.98_0_0)_58%,oklch(0.92_0_0)_100%)] transition-transform duration-300 ease-out lg:top-0 lg:h-screen lg:max-w-none lg:translate-x-0",
+            panelOpen ? "translate-x-0" : "-translate-x-full",
+          )}
+        >
+          <div className="flex h-[73px] shrink-0 flex-col justify-center border-b border-border/60 px-6">
             <p className="truncate text-sm font-semibold text-foreground">
               {isLoadingAdminSession ? "Carregando..." : currentAdmin.fullName}
             </p>
@@ -727,10 +761,10 @@ export default function AdminPage() {
             </p>
           </div>
 
-          <nav className="flex-1 space-y-1 p-4">
+          <nav className="min-h-0 flex-1 space-y-1 overflow-y-auto overscroll-contain p-4">
             <button
               type="button"
-              onClick={() => setActiveSection("contracts")}
+              onClick={() => selectSection("contracts")}
               className={cn(
                 "group flex w-full items-center justify-between gap-3 rounded-xl px-3 py-3 text-sm font-medium transition-all duration-200",
                 activeSection === "contracts"
@@ -751,7 +785,7 @@ export default function AdminPage() {
             </button>
             <button
               type="button"
-              onClick={() => setActiveSection("logins")}
+              onClick={() => selectSection("logins")}
               className={cn(
                 "group flex w-full items-center justify-between gap-3 rounded-xl px-3 py-3 text-sm font-medium transition-all duration-200",
                 activeSection === "logins"
@@ -770,31 +804,33 @@ export default function AdminPage() {
                 {contracts.length}
               </span>
             </button>
-            <button
-              type="button"
-              onClick={() => setActiveSection("plans")}
-              className={cn(
-                "group flex w-full items-center justify-between gap-3 rounded-xl px-3 py-3 text-sm font-medium transition-all duration-200",
-                activeSection === "plans"
-                  ? "bg-[linear-gradient(135deg,oklch(0.99_0_0)_0%,oklch(0.94_0_0)_58%,oklch(0.90_0_0)_100%)] text-sidebar-accent-foreground shadow-md shadow-foreground/5"
-                  : "text-sidebar-foreground/70 hover:bg-white/35 hover:text-sidebar-foreground hover:shadow-sm",
-              )}
-            >
-              <span className="flex min-w-0 items-center gap-3">
-                <CreditCard className="h-4 w-4 shrink-0" />
-                <span className="truncate">Planos</span>
-              </span>
-              <span className={cn(
-                "rounded-full px-2 py-0.5 text-[10px] font-semibold",
-                activeSection === "plans" ? "bg-foreground/10 text-foreground" : "bg-foreground/5 text-muted-foreground",
-              )}>
-                {plans.length}
-              </span>
-            </button>
-            {canManageAdminUsers && (
+            {canAccessFullAdmin && (
               <button
                 type="button"
-                onClick={() => setActiveSection("admins")}
+                onClick={() => selectSection("plans")}
+                className={cn(
+                  "group flex w-full items-center justify-between gap-3 rounded-xl px-3 py-3 text-sm font-medium transition-all duration-200",
+                  activeSection === "plans"
+                    ? "bg-[linear-gradient(135deg,oklch(0.99_0_0)_0%,oklch(0.94_0_0)_58%,oklch(0.90_0_0)_100%)] text-sidebar-accent-foreground shadow-md shadow-foreground/5"
+                    : "text-sidebar-foreground/70 hover:bg-white/35 hover:text-sidebar-foreground hover:shadow-sm",
+                )}
+              >
+                <span className="flex min-w-0 items-center gap-3">
+                  <CreditCard className="h-4 w-4 shrink-0" />
+                  <span className="truncate">Planos</span>
+                </span>
+                <span className={cn(
+                  "rounded-full px-2 py-0.5 text-[10px] font-semibold",
+                  activeSection === "plans" ? "bg-foreground/10 text-foreground" : "bg-foreground/5 text-muted-foreground",
+                )}>
+                  {plans.length}
+                </span>
+              </button>
+            )}
+            {canAccessFullAdmin && (
+              <button
+                type="button"
+                onClick={() => selectSection("admins")}
                 className={cn(
                   "group flex w-full items-center justify-between gap-3 rounded-xl px-3 py-3 text-sm font-medium transition-all duration-200",
                   activeSection === "admins"
@@ -814,9 +850,10 @@ export default function AdminPage() {
                 </span>
               </button>
             )}
-            <button
+            {canAccessFullAdmin && (
+              <button
               type="button"
-              onClick={() => setActiveSection("integrations")}
+              onClick={() => selectSection("integrations")}
               className={cn(
                 "group flex w-full items-center justify-between gap-3 rounded-xl px-3 py-3 text-sm font-medium transition-all duration-200",
                 activeSection === "integrations"
@@ -834,17 +871,48 @@ export default function AdminPage() {
               )}>
                 {hasMercadoPagoIntegration ? "1" : "0"}
               </span>
-            </button>
+              </button>
+            )}
           </nav>
 
+          <div className="shrink-0 border-t border-border/60 p-4">
+            <Button
+              type="button"
+              variant="outline"
+              className="h-10 w-full rounded-lg bg-background/70 hover:bg-black hover:text-white"
+              onClick={handleLogout}
+              disabled={isLoggingOut}
+            >
+              <span>{isLoggingOut ? "Voltando..." : "Voltar"}</span>
+            </Button>
+          </div>
         </aside>
 
-        <section className="min-w-0 flex-1">
-          <header className="sticky top-0 z-20 border-b border-border/60 bg-transparent px-4 backdrop-blur lg:px-8">
-            <div className="h-[73px]" />
+        <section className="min-w-0 flex-1 lg:pl-72">
+          <header
+            className={cn(
+              "fixed left-0 right-0 top-0 z-30 border-b border-border/60 px-4 backdrop-blur transition-colors duration-300 lg:left-72 lg:px-8",
+              panelOpen
+                ? "bg-[linear-gradient(115deg,oklch(0.93_0_0)_0%,oklch(0.98_0_0)_58%,oklch(0.92_0_0)_100%)] lg:bg-background/35"
+                : "bg-[linear-gradient(115deg,oklch(0.93_0_0)_0%,oklch(0.98_0_0)_42%,oklch(0.92_0_0)_100%)] lg:bg-transparent",
+            )}
+          >
+            <div className="flex h-[73px] items-center">
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="rounded-xl lg:hidden"
+                aria-label="Abrir menu admin"
+                aria-expanded={panelOpen}
+                onClick={() => setPanelOpen((open) => !open)}
+              >
+                <Menu className="h-5 w-5" />
+              </Button>
+            </div>
           </header>
 
-          <div key={activeSection} className="space-y-6 p-4 lg:p-8" style={{ animation: "synex-fade-in-up 420ms ease-out both" }}>
+          <div key={activeSection} className="space-y-6 px-4 pb-4 pt-[calc(73px+1rem)] lg:px-8 lg:pb-8 lg:pt-[calc(73px+2rem)]" style={{ animation: "synex-fade-in-up 420ms ease-out both" }}>
             {activeSection === "contracts" ? (
             <>
             <section className="grid gap-3 md:grid-cols-3">
@@ -864,8 +932,7 @@ export default function AdminPage() {
 
             <section className="grid gap-6 xl:grid-cols-[24rem_minmax(0,1fr)]">
               <form id="novo-contrato" onSubmit={handleSubmit} className="rounded-lg border border-border/70 bg-[linear-gradient(135deg,oklch(0.99_0_0)_0%,oklch(0.97_0_0)_50%,oklch(0.94_0_0)_100%)] p-4 shadow-sm">
-                <div className="flex items-center gap-2">
-                  <UserRound className="h-4 w-4 text-muted-foreground" />
+                <div>
                   <h2 className="text-base font-semibold text-foreground">{editingContractId ? "Editar contrato" : "Novo contrato"}</h2>
                 </div>
 
@@ -1012,8 +1079,7 @@ export default function AdminPage() {
             <section className="min-w-0 rounded-lg border border-border/70 bg-[linear-gradient(135deg,oklch(0.99_0_0)_0%,oklch(0.97_0_0)_50%,oklch(0.94_0_0)_100%)] shadow-sm">
               <div className="flex flex-col gap-3 border-b border-border/70 p-4 lg:flex-row lg:items-center lg:justify-between">
                 <div>
-                  <div className="flex items-center gap-2">
-                    <KeyRound className="h-4 w-4 text-muted-foreground" />
+                  <div>
                     <h2 className="text-base font-semibold text-foreground">Login dos contratos</h2>
                   </div>
                   <p className="mt-1 text-xs text-muted-foreground">
@@ -1108,8 +1174,7 @@ export default function AdminPage() {
             ) : activeSection === "plans" ? (
             <section>
               <form onSubmit={savePlans} className="rounded-lg border border-border/70 bg-[linear-gradient(135deg,oklch(0.99_0_0)_0%,oklch(0.97_0_0)_50%,oklch(0.94_0_0)_100%)] p-5 shadow-sm">
-                <div className="flex items-center gap-2">
-                  <CreditCard className="h-4 w-4 text-muted-foreground" />
+                <div>
                   <h2 className="text-base font-semibold text-foreground">Planos</h2>
                 </div>
                 <p className="mt-2 text-sm text-muted-foreground">
@@ -1148,8 +1213,7 @@ export default function AdminPage() {
             ) : activeSection === "admins" ? (
             <section className="grid gap-6 xl:grid-cols-[24rem_minmax(0,1fr)]">
               <form onSubmit={saveAdminUser} className="rounded-lg border border-border/70 bg-[linear-gradient(135deg,oklch(0.99_0_0)_0%,oklch(0.97_0_0)_50%,oklch(0.94_0_0)_100%)] p-4 shadow-sm">
-                <div className="flex items-center gap-2">
-                  <UserCog className="h-4 w-4 text-muted-foreground" />
+                <div>
                   <h2 className="text-base font-semibold text-foreground">Novo admin</h2>
                 </div>
 
@@ -1170,8 +1234,7 @@ export default function AdminPage() {
               <section className="min-w-0 rounded-lg border border-border/70 bg-[linear-gradient(135deg,oklch(0.99_0_0)_0%,oklch(0.97_0_0)_50%,oklch(0.94_0_0)_100%)] shadow-sm">
                 <div className="flex items-center justify-between border-b border-border/70 p-4">
                   <div>
-                    <div className="flex items-center gap-2">
-                      <UserCog className="h-4 w-4 text-muted-foreground" />
+                    <div>
                       <h2 className="text-base font-semibold text-foreground">Usuários admin</h2>
                     </div>
                     <p className="mt-1 text-xs text-muted-foreground">
@@ -1246,8 +1309,7 @@ export default function AdminPage() {
             ) : (
             <section>
               <form onSubmit={saveMercadoPago} className="rounded-lg border border-border/70 bg-[linear-gradient(135deg,oklch(0.99_0_0)_0%,oklch(0.97_0_0)_50%,oklch(0.94_0_0)_100%)] p-5 shadow-sm">
-                <div className="flex items-center gap-2">
-                  <Plug className="h-4 w-4 text-muted-foreground" />
+                <div>
                   <h2 className="text-base font-semibold text-foreground">Mercado Pago</h2>
                 </div>
                 <p className="mt-2 text-sm text-muted-foreground">

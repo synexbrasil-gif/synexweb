@@ -28,6 +28,12 @@ export function Navbar({ variant }: { variant?: "login" }) {
                   Como funciona
                 </a>
                 <a
+                  href="/termos"
+                  className="text-xs sm:text-sm text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                >
+                  Termos
+                </a>
+                <a
                   href="https://wa.me/212693974294?text=Ol%C3%A1%2C%20tenho%20interesse%20em%20contratar%20um%20plano."
                   target="_blank"
                   rel="noopener noreferrer"
@@ -54,7 +60,13 @@ export function Navbar({ variant }: { variant?: "login" }) {
                   href="/dashboard"
                   className="text-xs sm:text-sm text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
                 >
-                  Area do Cliente
+                  Área do Cliente
+                </a>
+                <a
+                  href="/termos"
+                  className="text-xs sm:text-sm text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                >
+                  Termos
                 </a>
                 <a
                   href="https://wa.me/212693974294?text=Ol%C3%A1%2C%20tenho%20interesse%20em%20contratar%20um%20plano."

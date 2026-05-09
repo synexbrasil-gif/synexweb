@@ -4,6 +4,7 @@ import { FormEvent, useState } from "react"
 import { Eye, EyeOff } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
+import { Checkbox } from "@/components/ui/checkbox"
 import { useNotification } from "@/components/notification-provider"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field"
@@ -15,6 +16,7 @@ export default function ContratoLoginPage() {
   const [username, setUsername] = useState("")
   const [password, setPassword] = useState("")
   const [showPassword, setShowPassword] = useState(false)
+  const [rememberSession, setRememberSession] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState("")
 
@@ -29,7 +31,7 @@ export default function ContratoLoginPage() {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ username, password }),
+        body: JSON.stringify({ username, password, rememberSession }),
       })
 
       if (!response.ok) {
@@ -106,6 +108,15 @@ export default function ContratoLoginPage() {
                 </div>
               </Field>
             </FieldGroup>
+
+            <label className="mt-4 flex cursor-pointer items-center gap-2 text-sm text-muted-foreground">
+              <Checkbox
+                checked={rememberSession}
+                onCheckedChange={(checked) => setRememberSession(checked === true)}
+                disabled={isLoading}
+              />
+              <span>Lembrar sessão</span>
+            </label>
 
             {error && <p className="mt-4 text-center text-sm text-destructive">{error}</p>}
 
